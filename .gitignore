@@ -1,0 +1,8 @@
+.DS_Store
+bin/
+
+# kiCad
+kicad/*/*-backups
+fp-info-cache
+*.dsn
+dsn
