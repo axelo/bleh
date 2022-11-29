@@ -11,7 +11,7 @@ out PROGRAM_PORT, a
 in a, PROGRAM_PORT ; Read low size into a
 ld b, a ; b = low size
 in a, PROGRAM_PORT ; Read high size into a
-ld b, c ; c = high size
+ld c, a ; c = high size
 
 ld i, PROGRAM_ADDRESS ; Program destination in RAM
 
@@ -24,5 +24,11 @@ jnz loop_read_bytes
 
 dec c
 jnz loop_read_bytes
+
+; Temp indicator that we're done.
+ld a, 0xaa
+ld b, 0xbb
+ld c, 0xcc
+ld d, 0xdd
 
 jmp PROGRAM_ADDRESS

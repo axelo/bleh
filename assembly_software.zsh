@@ -15,12 +15,16 @@ declare -i i=0
 
 for FILE in software/*.asm
 do
-  out_file=./bin/software/${${FILE:t}:r}.bin
-  customasm -q $FILE -o $out_file
+  out_file=./bin/software/${${FILE:t}:r}
+  out_file_filled=${out_file}_filled.bin
+  out_file_actual=${out_file}_actual.bin
+
+  customasm -q customasm_fill_rom.asm $FILE -o $out_file_filled
+  customasm -q customasm_rom.asm $FILE -o $out_file_actual
   echo "$i: $FILE"
   i+=1
-  customasm -q $FILE -p
-  out_files+=($out_file)
+  customasm -q customasm_rom.asm $FILE -p
+  out_files+=($out_file_filled)
 done
 
 # Fill the unused slots with 0.

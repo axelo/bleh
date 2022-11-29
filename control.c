@@ -282,10 +282,10 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
     case 0x87: {
         switch (step) {
         case 0: return FETCH_OPCODE;
-        case 1: return ALU_OP_SET_IO_OE_FLAG | LD_C;
-        case 2: return C_A | LD_C | TG_M_C;
-        case 3: return LD_MEM | LD_C;
-        case 4: return TG_M_C | LD_S_NOT_LD_C;
+        case 1: return ALU_OP_SET_IO_OE_FLAG | LD_C | TG_M_C;
+        case 2: return LD_C;
+        case 3: return LD_LS | C_LS_ALU_Q | C_A | LD_C;
+        case 4: return OE_ALU | LD_MEM | TG_M_C | LD_S_NOT_LD_C;
         }
     } break;
 
