@@ -1,7 +1,7 @@
 #include "../../customasm.asm"
 
 PROGRAM_PORT = 0
-PROGRAM_ADDRESS = 0x9000
+PROGRAM_ADDRESS = $ ; Set by current bank.
 
 ld sp, 0xff
 
