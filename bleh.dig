@@ -3914,7 +3914,7 @@
         </entry>
         <entry>
           <string>lastDataFile</string>
-          <file>/Users/axel/Hobby/bleh/bin/software.bin</file>
+          <file>/Users/axel/Hobby/bleh/bin/software_rom.bin</file>
         </entry>
         <entry>
           <string>autoReload</string>
@@ -4055,10 +4055,6 @@
         <entry>
           <string>Bits</string>
           <int>4</int>
-        </entry>
-        <entry>
-          <string>InDefault</string>
-          <value v="1" z="false"/>
         </entry>
       </elementAttributes>
       <pos x="2220" y="460"/>
@@ -7396,7 +7392,7 @@
         </entry>
         <entry>
           <string>NetName</string>
-          <string>C EXEC</string>
+          <string>C ~EXEC</string>
         </entry>
       </elementAttributes>
       <pos x="2700" y="740"/>
@@ -7458,6 +7454,16 @@
       <elementName>Not</elementName>
       <elementAttributes/>
       <pos x="2700" y="780"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Tunnel</elementName>
+      <elementAttributes>
+        <entry>
+          <string>NetName</string>
+          <string>BUS</string>
+        </entry>
+      </elementAttributes>
+      <pos x="2920" y="720"/>
     </visualElement>
   </visualElements>
   <wires>

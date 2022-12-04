@@ -88,21 +88,3 @@
     ld a, [sp-{imm:u8}] => 0xb2 @ (-imm)`8
     ld a, [sp+{imm:u8}] => 0xb2 @ imm`8
 }
-
-#bankdef rom {
-    #addr 0x0000
-    #size 0x8000
-    #outp 0x0
-    #fill
-}
-
-#bankdef ram {
-    #addr 0x8000
-    #size 0x8000
-}
-
-#bank ram
-
-#addr 0x8010    ; Skip the first 16 bytes as they contain registers
-
-#bank rom
