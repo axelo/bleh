@@ -88,12 +88,3 @@
     ld a, [sp-{imm:u8}] => 0xb2 @ (-imm)`8
     ld a, [sp+{imm:u8}] => 0xb2 @ imm`8
 }
-
-#bankdef ram {
-    #addr 0x8000
-    #size 0x8000
-}
-
-#bank ram
-
-#bank rom

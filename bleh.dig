@@ -3914,7 +3914,7 @@
         </entry>
         <entry>
           <string>lastDataFile</string>
-          <file>/Users/axel/Hobby/bleh/bin/software.bin</file>
+          <file>/Users/axel/Hobby/bleh/bin/software_rom.bin</file>
         </entry>
         <entry>
           <string>autoReload</string>
@@ -4055,10 +4055,6 @@
         <entry>
           <string>Bits</string>
           <int>4</int>
-        </entry>
-        <entry>
-          <string>InDefault</string>
-          <value v="1" z="false"/>
         </entry>
       </elementAttributes>
       <pos x="2220" y="460"/>

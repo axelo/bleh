@@ -1,4 +1,4 @@
-#include "../customasm.asm"
+#include "../../customasm.asm"
 
 PROGRAM_PORT = 0
 PROGRAM_ADDRESS = 0x9000
@@ -11,7 +11,10 @@ out PROGRAM_PORT, a
 in a, PROGRAM_PORT ; Read low size into a
 ld b, a ; b = low size
 in a, PROGRAM_PORT ; Read high size into a
-ld c, a ; c = high size
+inc a   ; Convert to number of 256 byte pages
+ld c, a ; c = number of pages to load
+
+start_read_bytes:
 
 ld i, PROGRAM_ADDRESS ; Program destination in RAM
 

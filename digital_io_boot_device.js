@@ -16,21 +16,19 @@ function gracefulExit(exitCode) {
 }
 
 const software = Uint8Array.from(
-  fs.readFileSync("bin/software/0_instructions_actual.bin")
+  fs.readFileSync("bin/software/ram/0_test.bin")
 );
 
 client.connect({ port: port, host: host }, () => {
   console.log("connected");
 });
 
-// The client can also receive data from the server by reading from its socket.
 client.on("data", (chunk) => {
   const opcode = chunk.readUInt8();
   const opcodeHex = "0x" + opcode.toString(16);
 
   if (opcode == 0xaa) {
-    console.log(opcodeHex, "Clearing counter");
-    counter = 0;
+    console.log(opcodeHex, "Sending program");
 
     client.write(
       Uint8Array.from([software.length & 0xff, (software.length >> 8) & 0xff]),

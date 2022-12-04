@@ -6,21 +6,19 @@
 # -o pipefail sets the exit code of a pipeline to that of the rightmost command to exit with a non-zero status.
 set -euo pipefail
 
-mkdir -p ./bin/software
+mkdir -p ./bin/software/rom
 
 # Compile every asm file individually, keep track of the outputted bin filenames.
 out_files=()
 
 declare -i i=0
 
-for FILE in software/*.asm
+for FILE in software/rom/*.asm
 do
-  out_file=./bin/software/${${FILE:t}:r}
-  out_file_filled=${out_file}_filled.bin
-  out_file_actual=${out_file}_actual.bin
+  out_file=./bin/software/rom/${${FILE:t}:r}
+  out_file_filled=${out_file}.bin
 
-  customasm -q customasm_fill_rom.asm $FILE -o $out_file_filled
-  customasm -q customasm_rom.asm $FILE -o $out_file_actual
+  customasm -q customasm_rom.asm $FILE -o $out_file_filled
   echo "$i: $FILE"
   i+=1
   customasm -q customasm_rom.asm $FILE -p
@@ -34,4 +32,4 @@ do
 done
 
 echo writing \`./bin/software.bin\`...
-cat $out_files > bin/software.bin
+cat $out_files > bin/software_rom.bin
