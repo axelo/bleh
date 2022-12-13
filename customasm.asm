@@ -65,6 +65,10 @@
     jnz {imm: i16} => 0x94 @ le(imm)
     jc  {imm: i16} => 0x95 @ le(imm)
     jnc {imm: i16} => 0x96 @ le(imm)
+    jo {imm: i16} => 0x97 @ le(imm)
+    jno {imm: i16} => 0x98 @ le(imm)
+    js {imm: i16} => 0x99 @ le(imm)
+    jns {imm: i16} => 0x9a @ le(imm)
 
     ld sp, {imm: i8} => 0xa0 @ imm
 

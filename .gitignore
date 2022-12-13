@@ -6,3 +6,9 @@ kicad/*/*-backups
 fp-info-cache
 *.dsn
 dsn
+
+# Arduino
+arduino/*/build
+
+# vscode
+.vscode

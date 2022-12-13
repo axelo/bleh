@@ -6,8 +6,8 @@
 # -o pipefail sets the exit code of a pipeline to that of the rightmost command to exit with a non-zero status.
 set -euo pipefail
 
-./assembly_software.zsh
+./assembly_software_rom.zsh
 
-read $'?\nPlace SOFTWARE rom into minipro then press [ENTER] to program bin\/software.bin\n'
+read $'?\nPlace SOFTWARE rom into minipro then press [ENTER] to program bin\/software_rom.bin\n'
 
-minipro -p SST39SF040 --write bin/software.bin
+minipro -p SST39SF040 --write bin/software_rom.bin

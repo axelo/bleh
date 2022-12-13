@@ -31,5 +31,5 @@ do
     out_files+=(zero.bin)
 done
 
-echo writing \`./bin/software.bin\`...
+echo writing \`./bin/software_rom.bin\`...
 cat $out_files > bin/software_rom.bin
