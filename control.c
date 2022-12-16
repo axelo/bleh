@@ -318,11 +318,22 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
     case 0x94: // jnz {imm: i16} => 0x94 @ le(imm)
     case 0x95: // jc  {imm: i16} => 0x95 @ le(imm)
     case 0x96: // jnc {imm: i16} => 0x96 @ le(imm)
+    case 0x97: // jo {imm: i16} => 0x97 @ le(imm)
+    case 0x98: // jno {imm: i16} => 0x98 @ le(imm)
+    case 0x99: // js {imm: i16} => 0x99 @ le(imm)
+    case 0x9a: // jns {imm: i16} => 0x9a @ le(imm)
     {
         bool do_jump = opcode == 0x93   ? zero_flag_set
                        : opcode == 0x94 ? !zero_flag_set
+
                        : opcode == 0x95 ? carry_flag_set
                        : opcode == 0x96 ? !carry_flag_set
+
+                       : opcode == 0x97 ? overflow_flag_set
+                       : opcode == 0x98 ? !overflow_flag_set
+
+                       : opcode == 0x99 ? sign_flag_set
+                       : opcode == 0x9a ? !sign_flag_set
                                         : false;
 
         if (do_jump) {

@@ -47,3 +47,12 @@ The input clock source is divided into two equally long phases named setup and e
 ### Data bus
 
 The data bus is pulled high so if nothing is asserted then `0xff` will be read.
+
+## Software
+
+### Loading software
+
+Using the [arduino boot device](./arduino/BootDeviceSketch/BootDeviceSketch.ino), connect a serial monitor and paste Intel Hex format of the program, for example:
+
+    customasm -q customasm_ram.asm ./software/ram/3_test.asm --print --format intelhex
+
