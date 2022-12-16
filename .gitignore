@@ -12,3 +12,6 @@ arduino/*/build
 
 # vscode
 .vscode
+
+# Temp programs
+software/*.asm.skip
