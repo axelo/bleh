@@ -7,8 +7,6 @@ LCD_PORT = 2
 start:
 
 ; Reset sequence
-nop
-
 ld a, (0b0010 << 4) | 0b0011
 out LCD_PORT, a
 ld a, 0
@@ -25,7 +23,6 @@ out LCD_PORT, a
 
 nop
 nop
-
 
 ld a, (0b0010 << 4) | 0b0011
 out LCD_PORT, a
@@ -51,8 +48,6 @@ ld a, (0b0010 << 4) | 0b1000 ; NF**
 out LCD_PORT, a
 ld a, 0
 out LCD_PORT, a
-
-nop
 
 ld a, (0b0010 << 4) | 0b0010 ; 1(DL)
 out LCD_PORT, a
@@ -114,6 +109,7 @@ write_string:
 
     ld c, a
 
+    ; Send high nibble
     shr a
     shr a
     shr a
@@ -124,6 +120,7 @@ write_string:
     ld a, 0
     out LCD_PORT, a
 
+    ; Send low nibble
     ld a, c
     ld b, 0b00001111
     and a, b
