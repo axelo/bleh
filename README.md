@@ -6,7 +6,7 @@ Simple 8-bit processor with an 8-bit data bas, a 16-bit address bus and 8 in/out
 
 ## Videos
 
-![hellorld](./videos/hellorld.mp4)
+https://user-images.githubusercontent.com/40123/208307373-e6665b57-9ac1-4e1d-83b8-c3a5a47eff5f.mp4
 
 ## Logic blocks
 
