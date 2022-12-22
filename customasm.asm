@@ -56,10 +56,14 @@
     dec b => 0x60
     dec c => 0x61
 
+    out {port: u3}, {imm: i8} => (0x78 + port)`8 @ imm
+
     in a, {port: u3} => (0x80 + port)`8
     out {port: u3}, a => (0x88 + port)`8
     ; 0x90
 
+    jmp i => 0x90
+    jmp j => 0x91
     jmp {imm: i16} => 0x92 @ le(imm)
     jz  {imm: i16} => 0x93 @ le(imm)
     jnz {imm: i16} => 0x94 @ le(imm)

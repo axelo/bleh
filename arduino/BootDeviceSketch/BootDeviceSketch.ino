@@ -29,7 +29,7 @@ static char buffer[BUFFER_CAP];
 static char buffer2[BUFFER_CAP];
 
 #define PROGRAM_SIZE_CAP 1024
-static uint8_t loaded_program[PROGRAM_SIZE_CAP];
+static uint8_t loaded_program[PROGRAM_SIZE_CAP] = {0};
 static uint16_t n_program_bytes;
 
 static void isr_read_from_bus_clock_exec() {
@@ -192,7 +192,7 @@ void loop() {
                     tmp[2] = '\0';
                     uint8_t expected_checksum = strtoul(tmp, NULL, 16);
 
-                    uint8_t checksum = size + address + record_type;
+                    uint8_t checksum = size + ((address >> 8) & 0xff) + (address & 0xff) + record_type;
 
                     sprintf(buffer2, "S: %d, A: 0x%04x\n", size, address);
                     Serial.write(buffer2);

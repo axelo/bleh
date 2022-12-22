@@ -2,7 +2,7 @@
 
 Simple 8-bit processor with an 8-bit data bas, a 16-bit address bus and 8 in/out ports. Code and data is shared (Von Neumann architecture).
 
-![BLEH-1](./BLEH-1.jpg?raw=true "BLEH-1")
+![BLEH-1](./media/BLEH-1.jpg?raw=true "BLEH-1")
 
 ## Videos
 

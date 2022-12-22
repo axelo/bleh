@@ -272,6 +272,21 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
     } break;
 
+    case 0x78: // out {port: u3}, {imm: i8} => (0x78 + port)`8 @ imm
+    case 0x79:
+    case 0x7a:
+    case 0x7b:
+    case 0x7c:
+    case 0x7d:
+    case 0x7e:
+    case 0x7f: {
+        switch (step) {
+        case 0: return FETCH_OPCODE;
+        case 1: return OE_MEM | LD_IO_NOT_LD_C;
+        case 2: return CE_M_NOT_LD_C | LD_S_NOT_LD_C;
+        }
+    } break;
+
     case 0x80: // in a, {port: u3} => (0x80 + port)`8
     case 0x81:
     case 0x82:
@@ -302,6 +317,19 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         case 1: return C_A | LD_C | TG_M_C;
         case 2: return OE_MEM | LD_IO_NOT_LD_C;
         case 3: return TG_M_C | LD_S_NOT_LD_C;
+        }
+    } break;
+
+    case 0x90: // jmp i => 0x90
+    case 0x91: // jmp j => 0x91
+    {
+        uint8_t const_index_l = opcode == 0x90 ? C_IL : C_JL;
+
+        switch (step) {
+        case 0: return FETCH_OPCODE;
+        case 1: return const_index_l | LD_C | TG_M_C;
+        case 2: return OE_MEM | LD_ML | (const_index_l + 1) | LD_C;
+        case 3: return OE_MEM | LD_MH | LD_S_NOT_LD_C | TG_M_C;
         }
     } break;
 
