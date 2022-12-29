@@ -99,7 +99,7 @@ static uint8_t io_ports[8];
 static int n_instructions = 0;
 
 static void print_state(State s) {
-    // TODO: Write to a buffer that do one write to stdout.
+    // TODO: Write to a buffer then do one write to stdout.
 
     printf("\033[2J\033[3J"); // Clear the viewport and the screen, the order seems to be important
     printf("\033[H"); // Position cursor at top-left corner
