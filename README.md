@@ -73,4 +73,14 @@ Using the [arduino boot device](./arduino/BootDeviceSketch/BootDeviceSketch.ino)
 
 ### Run
 
-    ./bin/emulator <PROGRAM TO RUN>
+Requires that the control and ALU ROM binaries are built:
+
+    ./run.zsh control.c && ./run.zsh alu.c
+
+Then compile your program using `customasm` togheter with `customasm_ram.asm`:
+
+    customasm customasm_ram.asm <PROGRAM TO RUN>.asm --format binary --output <PROGRAM TO RUN>.bin
+
+Then finally run the program using the emulator:
+
+    ./bin/emulator <PROGRAM TO RUN>.bin
