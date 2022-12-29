@@ -4,6 +4,8 @@
 #include <stdlib.h> // exit
 #include <time.h> // nanosleep
 
+#define CLOCK_DELAY_MS (60) // TODO: Change to HZ
+
 #define CONTROL_ROM_SIZE (1 << 17)
 #define ALU_ROM_SIZE (1 << 17)
 #define ROM_SIZE (1 << 15)
@@ -89,11 +91,15 @@ static uint8_t alu_high_rom[ALU_ROM_SIZE];
 static uint8_t rom[RAM_SIZE];
 static uint8_t ram[RAM_SIZE];
 
+static uint8_t io_ports[8];
+
+static int n_instructions = 0;
+
 static void print_state(State s) {
     printf("\033[2J\033[3J"); // Clear the viewport and the screen, the order seems to be important
     printf("\033[H"); // Position cursor at top-left corner
 
-    printf("CLK   S   O   F   LS   RS   C   ML   MH\n");
+    printf("CLK   S   O   F   LS   RS   C   ML   MH (ic: %d)\n", n_instructions);
     printf("  %d%4d%4x%4x%5x%5x%4x%5x%5x\n\n", s.c_exec, s.r_s, s.r_o, s.r_f, s.r_ls, s.r_rs, s.r_c, s.r_ml, s.r_mh);
 
     printf("ZF   CF   OF   SF   SEL ~M/C   ~HALT\n");
@@ -151,6 +157,20 @@ static void print_state(State s) {
            SIGNAL_OE_ALU(s.control_signals),
            SIGNAL_OE_MEM(s.control_signals),
            C_OE_IO(s.r_c));
+
+    printf("IO PORT 0   IO PORT 1   IO PORT 2   IO PORT 3\n");
+    printf("%9x%12x%12x%12x\n\n",
+           io_ports[0],
+           io_ports[1],
+           io_ports[2],
+           io_ports[3]);
+
+    printf("IO PORT 4   IO PORT 5   IO PORT 6   IO PORT 7\n");
+    printf("%9x%12x%12x%12x\n\n",
+           io_ports[4],
+           io_ports[5],
+           io_ports[6],
+           io_ports[7]);
 
     return;
 
@@ -460,8 +480,7 @@ static State next_state(State s) {
 
     // Latch IO
     if (!SIGNAL_LD_IO(s.control_signals)) {
-        // TODO: Use r_o to know which port.
-        assert(0 && "Latch IO not yet implemented");
+        io_ports[s.r_o & 7] = s.data_bus;
     }
 
     // Latch F
@@ -521,11 +540,9 @@ int main(int argc, char **argv) {
     State state = next_state((State){.c_exec = 1,
                                      .r_s = 0xf});
 
-    int n_instructions = 0;
-
     struct timespec ts = {
         .tv_sec = 0,
-        .tv_nsec = 250e6, // 250 ms
+        .tv_nsec = (CLOCK_DELAY_MS)*1e6,
     };
 
     while (1) {
