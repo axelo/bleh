@@ -1,58 +1,63 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h> // exit
+#include <time.h> // nanosleep
 
 #define CONTROL_ROM_SIZE (1 << 17)
 #define ALU_ROM_SIZE (1 << 17)
 #define ROM_SIZE (1 << 15)
 #define RAM_SIZE (1 << 15)
 
-typedef struct {
-    // Control low signals
-    uint8_t c0_or_ce_m;
-    uint8_t c1_or_ld_o;
-    uint8_t c2_or_ld_s;
-    uint8_t c3_or_ld_rs;
-    uint8_t c4_alu_op4_or_ld_io;
-    uint8_t c5_ls_alu_q_or_halt_c;
-    uint8_t ld_c; // active low
-    uint8_t toggle_m_c; // m when low
+// Control low signals
+#define SIGNAL_C0_OR_CE_M(signals) (((signals) >> 0) & 1)
+#define SIGNAL_C1_OR_LD_O(signals) (((signals) >> 1) & 1)
+#define SIGNAL_C2_OR_LD_S(signals) (((signals) >> 2) & 1)
+#define SIGNAL_C3_OR_LD_RS(signals) (((signals) >> 3) & 1)
+#define SIGNAL_C4_ALU_OP4_OR_LD_IO(signals) (((signals) >> 4) & 1)
+#define SIGNAL_C5_LS_ALU_Q_OR_HALT_C(signals) (((signals) >> 5) & 1)
+#define SIGNAL_LD_C(signals) (((signals) >> 6) & 1)
+#define SIGNAL_TOGGLE_M_C(signals) (((signals) >> 7) & 1)
 
-    // Control high signals
-    uint8_t ld_mem; // active high
-    uint8_t ld_ls; // active low
-    uint8_t ld_ml; // active low
-    uint8_t ld_mh; // active low
-    uint8_t oe_ml; // active low
-    uint8_t oe_mh; // active low
-    uint8_t oe_alu; // active low
-    uint8_t oe_mem; // active low
+// Control high signals
+#define SIGNAL_LD_MEM(signals) (((signals) >> 8) & 1)
+#define SIGNAL_LD_LS(signals) (((signals) >> 9) & 1)
+#define SIGNAL_LD_ML(signals) (((signals) >> 10) & 1)
+#define SIGNAL_LD_MH(signals) (((signals) >> 11) & 1)
+#define SIGNAL_OE_ML(signals) (((signals) >> 12) & 1)
+#define SIGNAL_OE_MH(signals) (((signals) >> 13) & 1)
+#define SIGNAL_OE_ALU(signals) (((signals) >> 14) & 1)
+#define SIGNAL_OE_MEM(signals) (((signals) >> 15) & 1)
 
-    // Signals based on clock exec
-    uint8_t c_ld_mem; // active low
+// Combined NAND signals
+#define SIGNAL_LD_O(signals) (~(SIGNAL_C1_OR_LD_O(signals) & SIGNAL_LD_C(signals)) & 1)
+#define SIGNAL_LD_S(signals) (~(SIGNAL_C2_OR_LD_S(signals) & SIGNAL_LD_C(signals)) & 1)
+#define SIGNAL_LD_RS(signals) (~(SIGNAL_C3_OR_LD_RS(signals) & SIGNAL_LD_C(signals)) & 1)
+#define SIGNAL_LD_IO(signals) (~(SIGNAL_C4_ALU_OP4_OR_LD_IO(signals) & SIGNAL_LD_C(signals)) & 1)
+#define SIGNAL_HALT(signals) (~(SIGNAL_C5_LS_ALU_Q_OR_HALT_C(signals) & SIGNAL_LD_C(signals)) & 1)
+#define SIGNAL_LD_RS(signals) (~(SIGNAL_C3_OR_LD_RS(signals) & SIGNAL_LD_C(signals)) & 1)
+#define SIGNAL_LD_IO(signals) (~(SIGNAL_C4_ALU_OP4_OR_LD_IO(signals) & SIGNAL_LD_C(signals)) & 1)
+#define SIGNAL_HALT(signals) (~(SIGNAL_C5_LS_ALU_Q_OR_HALT_C(signals) & SIGNAL_LD_C(signals)) & 1)
 
-    // Signals based on ld_c high.
-    uint8_t ld_o; // active low
-    uint8_t ld_s; // active low
-    uint8_t ld_rs; // active low
-    uint8_t ld_io; // active low
-    uint8_t halt; // active low
-} Signals;
+// Combined NAND and C signals
+#define SIGNAL_C_LD_MEM(signals, c_exec) (~(SIGNAL_LD_MEM(signals) & c_exec) & 1)
 
-typedef struct {
-    uint8_t alu_l_qz; // 1 bit
-    uint8_t alu_l_qc; // 1 bit
+// ALU low signals
+#define ALU_SIGNAL_L_QZ(alu_signals) (((alu_signals) >> 0) & 1)
+#define ALU_SIGNAL_L_QC(alu_signals) (((alu_signals) >> 1) & 1)
+#define ALU_SIGNAL_Q_ZF(alu_signals) (((alu_signals) >> 2) & 1)
+#define ALU_SIGNAL_Q_IO_OE(alu_signals) (((alu_signals) >> 3) & 1)
 
-    uint8_t alu_h_qz; // 1 bit
-    uint8_t alu_h_qc; // 1 bit
+// ALU high signals
+#define ALU_SIGNAL_H_QZ(alu_signals) (((alu_signals) >> 8) & 1)
+#define ALU_SIGNAL_H_QC(alu_signals) (((alu_signals) >> 9) & 1)
+#define ALU_SIGNAL_Q_CF(alu_signals) (((alu_signals) >> 10) & 1)
+#define ALU_SIGNAL_Q_OF(alu_signals) (((alu_signals) >> 11) & 1)
 
-    uint8_t alu_q_zf; // 1 bit
-    uint8_t alu_q_io_oe; // 1 bit
-    uint8_t alu_q_cf; // 1 bit
-    uint8_t alu_q_of; // 1 bit
+// ALU combined signals
+#define ALU_SIGNAL_Q(alu_signals) ((((alu_signals) >> 8) & 0xf0) | ((alu_signals) >> 4) & 0x0f)
 
-    uint8_t alu_q;
-} ALU;
+#define C_OE_IO(c_q) (((c_q) >> 6) & 1) // Active high
 
 typedef struct {
     uint8_t c_exec; // 1 bit
@@ -67,15 +72,14 @@ typedef struct {
     uint8_t r_mh;
     uint8_t r_sel_m_or_c; // 1 bit, m when low
 
+    uint16_t control_signals;
+    uint16_t alu_signals;
+
     uint16_t address_bus;
     uint8_t en_rom;
     uint8_t en_ram;
 
     uint8_t data_bus;
-
-    Signals signals;
-
-    ALU alu;
 } State;
 
 static uint8_t control_rom[CONTROL_ROM_SIZE];
@@ -85,11 +89,73 @@ static uint8_t alu_high_rom[ALU_ROM_SIZE];
 static uint8_t rom[RAM_SIZE];
 static uint8_t ram[RAM_SIZE];
 
-static void print_state(State *s) {
-    Signals *sig = &s->signals;
+static void print_state(State s) {
+    printf("\033[2J\033[3J"); // Clear the viewport and the screen, the order seems to be important
+    printf("\033[H"); // Position cursor at top-left corner
+
+    printf("CLK   S   O   F   LS   RS   C   ML   MH\n");
+    printf("  %d%4d%4x%4x%5x%5x%4x%5x%5x\n\n", s.c_exec, s.r_s, s.r_o, s.r_f, s.r_ls, s.r_rs, s.r_c, s.r_ml, s.r_mh);
+
+    printf("ZF   CF   OF   SF   SEL ~M/C   ~HALT\n");
+    printf("%2d%5d%5d%5d%11d%8d\n\n",
+           (s.r_f >> 0 & 1),
+           (s.r_f >> 1 & 1),
+           (s.r_f >> 2 & 1),
+           (s.r_f >> 3 & 1),
+           s.r_sel_m_or_c,
+           SIGNAL_HALT(s.control_signals));
+
+    printf("ALU Q ZF   ALU Q CF   ALU Q OF   ALU Q IO OE   ALU Q\n");
+    printf("%8d%11d%11d%11d%11x\n\n",
+           ALU_SIGNAL_Q_ZF(s.alu_signals),
+           ALU_SIGNAL_Q_CF(s.alu_signals),
+           ALU_SIGNAL_Q_OF(s.alu_signals),
+           ALU_SIGNAL_Q_IO_OE(s.alu_signals),
+           ALU_SIGNAL_Q(s.alu_signals));
+
+    printf("C0/CE M   C1/LD O   C2/LD S   C3/LD RS\n");
+    printf("%7d%10d%10d%11d\n\n",
+           SIGNAL_C0_OR_CE_M(s.control_signals),
+           SIGNAL_C1_OR_LD_O(s.control_signals),
+           SIGNAL_C2_OR_LD_S(s.control_signals),
+           SIGNAL_C3_OR_LD_RS(s.control_signals));
+
+    printf("C4 ALU OP4/LD IO   C5 LS ALU Q/HALT C   C3..0   C5..0\n");
+    printf("%16d%21d%8x%8x\n\n",
+           SIGNAL_C4_ALU_OP4_OR_LD_IO(s.control_signals),
+           SIGNAL_C5_LS_ALU_Q_OR_HALT_C(s.control_signals),
+           s.control_signals & 0xf,
+           s.control_signals & 0x3f);
+
+    printf("~LD C   TOGGLE ~M/C   LD MEM   ~LD LS   ~LD ML   ~LD MH\n");
+    printf("%5d%14d%9d%9d%9d%9d\n\n",
+           SIGNAL_LD_C(s.control_signals),
+           SIGNAL_TOGGLE_M_C(s.control_signals),
+           SIGNAL_LD_MEM(s.control_signals),
+           SIGNAL_LD_LS(s.control_signals),
+           SIGNAL_LD_ML(s.control_signals),
+           SIGNAL_LD_MH(s.control_signals));
+
+    printf("C ~LD MEM   ~LD O   ~LD S   ~LD RS   ~LD IO\n");
+    printf("%9d%8d%8d%9d%9d\n\n",
+           SIGNAL_C_LD_MEM(s.control_signals, s.c_exec),
+           SIGNAL_LD_O(s.control_signals),
+           SIGNAL_LD_S(s.control_signals),
+           SIGNAL_LD_RS(s.control_signals),
+           SIGNAL_LD_IO(s.control_signals));
+
+    printf("~OE ML   ~OE MH   ~OE ALU   ~OE MEM   OE IO\n");
+    printf("%6d%9d%10d%10d%8d\n\n",
+           SIGNAL_OE_ML(s.control_signals),
+           SIGNAL_OE_MH(s.control_signals),
+           SIGNAL_OE_ALU(s.control_signals),
+           SIGNAL_OE_MEM(s.control_signals),
+           C_OE_IO(s.r_c));
+
+    return;
 
     printf(
-        "\n============= STATE =============\n"
+        "\n"
         "            C EXEC: %d\n"
         "\n"
         "           C0/CE M: %d\n"
@@ -137,101 +203,115 @@ static void print_state(State *s) {
         "          ALU Q CF: %d\n"
         "          ALU Q OF: %d\n"
         "             ALU Q: 0x%02x\n",
-        s->c_exec,
+        s.c_exec,
 
-        sig->c0_or_ce_m,
-        sig->c1_or_ld_o,
-        sig->c2_or_ld_s,
-        sig->c3_or_ld_rs,
-        sig->c4_alu_op4_or_ld_io,
-        sig->c5_ls_alu_q_or_halt_c,
-        sig->ld_c,
-        sig->toggle_m_c,
+        SIGNAL_C0_OR_CE_M(s.control_signals),
+        SIGNAL_C1_OR_LD_O(s.control_signals),
+        SIGNAL_C2_OR_LD_S(s.control_signals),
+        SIGNAL_C3_OR_LD_RS(s.control_signals),
+        SIGNAL_C4_ALU_OP4_OR_LD_IO(s.control_signals),
+        SIGNAL_C5_LS_ALU_Q_OR_HALT_C(s.control_signals),
+        SIGNAL_LD_C(s.control_signals),
+        SIGNAL_TOGGLE_M_C(s.control_signals),
 
-        sig->ld_mem,
-        sig->ld_ls,
-        sig->ld_ml,
-        sig->ld_mh,
-        sig->oe_ml,
-        sig->oe_mh,
-        sig->oe_alu,
-        sig->oe_mem,
+        SIGNAL_LD_MEM(s.control_signals),
+        SIGNAL_LD_LS(s.control_signals),
+        SIGNAL_LD_ML(s.control_signals),
+        SIGNAL_LD_MH(s.control_signals),
+        SIGNAL_OE_ML(s.control_signals),
+        SIGNAL_OE_MH(s.control_signals),
+        SIGNAL_OE_ALU(s.control_signals),
+        SIGNAL_OE_MEM(s.control_signals),
 
-        sig->c_ld_mem,
-        sig->ld_o,
-        sig->ld_s,
-        sig->ld_rs,
-        sig->ld_io,
-        sig->halt,
+        SIGNAL_C_LD_MEM(s.control_signals, s.c_exec),
+        SIGNAL_LD_O(s.control_signals),
+        SIGNAL_LD_S(s.control_signals),
+        SIGNAL_LD_RS(s.control_signals),
+        SIGNAL_LD_IO(s.control_signals),
+        SIGNAL_HALT(s.control_signals),
 
-        s->data_bus,
-        s->address_bus,
-        s->en_rom,
-        s->en_ram,
+        s.data_bus,
+        s.address_bus,
+        s.en_rom,
+        s.en_ram,
 
-        s->r_s,
-        s->r_o,
-        s->r_f,
-        s->r_sel_m_or_c,
-        s->r_c,
-        s->r_ls,
-        s->r_rs,
-        s->r_ml,
-        s->r_mh,
+        s.r_s,
+        s.r_o,
+        s.r_f,
+        s.r_sel_m_or_c,
+        s.r_c,
+        s.r_ls,
+        s.r_rs,
+        s.r_ml,
+        s.r_mh,
 
-        s->alu.alu_q_zf,
-        s->alu.alu_q_io_oe,
-        s->alu.alu_q_cf,
-        s->alu.alu_q_of,
-        s->alu.alu_q);
+        ALU_SIGNAL_Q_ZF(s.alu_signals),
+        ALU_SIGNAL_Q_IO_OE(s.alu_signals),
+        ALU_SIGNAL_Q_CF(s.alu_signals),
+        ALU_SIGNAL_Q_OF(s.alu_signals),
+        ALU_SIGNAL_Q(s.alu_signals));
+
+    fflush(stdout);
 }
 
-static ALU next_alu(const State *s) {
-    uint8_t cf = (s->r_f >> 1) & 1;
+static uint16_t control_signals(State s) {
+    uint8_t zf = (s.r_f >> 0) & 1;
+    uint8_t cf = (s.r_f >> 1) & 1;
+    uint8_t of = (s.r_f >> 2) & 1;
+    uint8_t sf = (s.r_f >> 3) & 1;
 
-    uint8_t c_q0 = (s->r_c >> 0) & 1;
-    uint8_t c_q1 = (s->r_c >> 1) & 1;
-    uint8_t c_q2 = (s->r_c >> 2) & 1;
-    uint8_t c_q3 = (s->r_c >> 3) & 1;
-    uint8_t c_q4 = (s->r_c >> 4) & 1;
-    uint8_t c_q5 = (s->r_c >> 5) & 1;
+    uint8_t step_q0 = (s.r_s >> 0) & 1;
+    uint8_t step_q1 = (s.r_s >> 1) & 1;
+    uint8_t step_q2 = (s.r_s >> 2) & 1;
+    uint8_t step_q3 = (s.r_s >> 3) & 1;
 
-    uint8_t alu_l_qz = s->alu.alu_l_qz;
-    uint8_t alu_l_qc = s->alu.alu_l_qc;
+    uint32_t control_l_address = (step_q2 << 16) | (step_q1 << 15) | (step_q3 << 14) | (sf << 13) | (step_q0 << 12) | (zf << 11) | (0 << 10) | (cf << 9) | (of << 8) | s.r_o;
+    uint32_t control_h_address = (step_q2 << 16) | (step_q1 << 15) | (step_q3 << 14) | (sf << 13) | (step_q0 << 12) | (zf << 11) | (1 << 10) | (cf << 9) | (of << 8) | s.r_o;
 
-    uint8_t alu_h_qz = s->alu.alu_h_qz;
-    uint8_t alu_h_qc = s->alu.alu_h_qc;
+    uint8_t control_l_signals = control_rom[control_l_address];
+    uint8_t control_h_signals = control_rom[control_h_address];
+
+    return (control_h_signals << 8) | control_l_signals;
+}
+
+static uint16_t alu_signals(State s) {
+    uint8_t cf = (s.r_f >> 1) & 1; // TODO: #define
+
+    uint8_t c_q0 = (s.r_c >> 0) & 1;
+    uint8_t c_q1 = (s.r_c >> 1) & 1;
+    uint8_t c_q2 = (s.r_c >> 2) & 1;
+    uint8_t c_q3 = (s.r_c >> 3) & 1;
+    uint8_t c_q4 = (s.r_c >> 4) & 1;
+    uint8_t c_q5 = (s.r_c >> 5) & 1;
+
+    uint8_t alu_l_qz = ALU_SIGNAL_L_QZ(s.alu_signals);
+    uint8_t alu_l_qc = ALU_SIGNAL_L_QC(s.alu_signals);
+
+    uint8_t alu_h_qz = ALU_SIGNAL_H_QZ(s.alu_signals);
+    uint8_t alu_h_qc = ALU_SIGNAL_H_QC(s.alu_signals);
 
     for (int i = 0; i < 10; ++i) {
-        uint32_t alu_l_address = (c_q5 << 16) | (alu_h_qc << 15) | (c_q4 << 14) | (c_q3 << 13) | (alu_h_qz << 12) | (c_q2 << 11) | (c_q1 << 10) | (c_q0 << 9) | (cf << 8) | ((s->r_rs & 0xf) << 4) | (s->r_ls & 0xf);
-        uint32_t alu_h_address = (c_q5 << 16) | (alu_l_qc << 15) | (c_q4 << 14) | (c_q3 << 13) | (alu_l_qz << 12) | (c_q2 << 11) | (c_q1 << 10) | (c_q0 << 9) | (cf << 8) | ((s->r_rs >> 4) << 4) | (s->r_ls >> 4);
+        uint32_t alu_l_address = (c_q5 << 16) | (alu_h_qc << 15) | (c_q4 << 14) | (c_q3 << 13) | (alu_h_qz << 12) | (c_q2 << 11) | (c_q1 << 10) | (c_q0 << 9) | (cf << 8) | ((s.r_rs & 0xf) << 4) | (s.r_ls & 0xf);
+        uint32_t alu_h_address = (c_q5 << 16) | (alu_l_qc << 15) | (c_q4 << 14) | (c_q3 << 13) | (alu_l_qz << 12) | (c_q2 << 11) | (c_q1 << 10) | (c_q0 << 9) | (cf << 8) | ((s.r_rs >> 4) << 4) | (s.r_ls >> 4);
 
-        uint8_t alu_l_signals = alu_low_rom[alu_l_address];
-        uint8_t alu_h_signals = alu_high_rom[alu_h_address];
+        uint16_t alu_signals = (alu_high_rom[alu_h_address] << 8) | alu_low_rom[alu_l_address];
 
-        uint8_t alu_l_q0_alu_l_qz = (alu_l_signals >> 0) & 1;
-        uint8_t alu_l_q1_alu_l_qc = (alu_l_signals >> 1) & 1;
+        uint8_t alu_l_q0_alu_l_qz = ALU_SIGNAL_L_QZ(alu_signals);
+        uint8_t alu_l_q1_alu_l_qc = ALU_SIGNAL_L_QC(alu_signals);
 
-        uint8_t alu_h_q0_alu_h_qz = (alu_h_signals >> 0) & 1;
-        uint8_t alu_h_q1_alu_h_qc = (alu_h_signals >> 1) & 1;
+        uint8_t alu_h_q0_alu_h_qz = ALU_SIGNAL_H_QZ(alu_signals);
+        uint8_t alu_h_q1_alu_h_qc = ALU_SIGNAL_H_QC(alu_signals);
 
         if (alu_l_qz == alu_l_q0_alu_l_qz && alu_l_qc == alu_l_q1_alu_l_qc &&
             alu_h_qz == alu_h_q0_alu_h_qz && alu_h_qc == alu_h_q1_alu_h_qc) {
 
-            return (ALU){
-                .alu_l_qz = alu_l_qz,
-                .alu_l_qc = alu_l_qc,
+            if (i > 1) {
+                // TODO: Temp.
+                printf("\n I: %d\n", i);
+                exit(0);
+            }
 
-                .alu_h_qz = alu_h_qz,
-                .alu_h_qc = alu_h_qc,
-
-                .alu_q_zf = (alu_l_signals >> 2) & 1,
-                .alu_q_io_oe = (alu_l_signals >> 3) & 1,
-                .alu_q_cf = (alu_h_signals >> 2) & 1,
-                .alu_q_of = (alu_h_signals >> 3) & 1,
-
-                .alu_q = (alu_h_signals & 0xf0) | (alu_l_signals >> 4),
-            };
+            return alu_signals;
         }
 
         alu_l_qz = alu_l_q0_alu_l_qz;
@@ -245,6 +325,10 @@ static ALU next_alu(const State *s) {
 }
 
 static State next_state(State s) {
+    if (!SIGNAL_HALT(s.control_signals)) {
+        return s;
+    }
+
     s.c_exec = (!s.c_exec) & 1;
 
     if (!s.c_exec) { // C SETUP (~C EXEC)
@@ -254,149 +338,166 @@ static State next_state(State s) {
         }
 
         // Latch S
-        if (!s.signals.ld_s) {
+        if (!SIGNAL_LD_S(s.control_signals)) {
             s.r_s = 0x0;
         }
 
         // Latch C
-        if (!s.signals.ld_c) {
+        if (!SIGNAL_LD_C(s.control_signals)) {
             s.r_c = (1 << 7) |
-                    (s.alu.alu_q_io_oe << 6) |
-                    (s.signals.c5_ls_alu_q_or_halt_c << 5) |
-                    (s.signals.c4_alu_op4_or_ld_io << 4) |
-                    (s.signals.c3_or_ld_rs << 3) |
-                    (s.signals.c2_or_ld_s << 2) |
-                    (s.signals.c1_or_ld_o << 1) |
-                    (s.signals.c0_or_ce_m << 0);
+                    (ALU_SIGNAL_Q_IO_OE(s.alu_signals) << 6) |
+                    (SIGNAL_C5_LS_ALU_Q_OR_HALT_C(s.control_signals) << 5) |
+                    (SIGNAL_C4_ALU_OP4_OR_LD_IO(s.control_signals) << 4) |
+                    (SIGNAL_C3_OR_LD_RS(s.control_signals) << 3) |
+                    (SIGNAL_C2_OR_LD_S(s.control_signals) << 2) |
+                    (SIGNAL_C1_OR_LD_O(s.control_signals) << 1) |
+                    (SIGNAL_C0_OR_CE_M(s.control_signals) << 0);
 
-            s.alu = next_alu(&s);
+            s.alu_signals = alu_signals(s);
+
+            if (C_OE_IO(s.r_c)) {
+                // TODO: Use r_o to know which port.
+                assert(0 && "OE IO not yet implemented");
+            }
         }
 
         // Count ML/MH
-        if (s.signals.ld_c && s.signals.c0_or_ce_m && s.signals.ld_ml) {
-            if (++s.r_ml == 0 && s.signals.ld_mh) {
+        if (SIGNAL_LD_C(s.control_signals) && SIGNAL_C0_OR_CE_M(s.control_signals) && SIGNAL_LD_ML(s.control_signals)) {
+            if (++s.r_ml == 0 && SIGNAL_LD_MH(s.control_signals)) {
                 ++s.r_mh;
             }
         }
 
         // Latch ML
-        if (!s.signals.ld_ml) {
+        if (!SIGNAL_LD_ML(s.control_signals)) {
             s.r_ml = s.data_bus;
         }
 
         // Latch MH
-        if (!s.signals.ld_mh) {
+        if (!SIGNAL_LD_MH(s.control_signals)) {
             s.r_mh = s.data_bus;
         }
 
         // Toggle SEL ~M/C
-        if (s.signals.toggle_m_c) {
+        if (SIGNAL_TOGGLE_M_C(s.control_signals)) {
             s.r_sel_m_or_c = (!s.r_sel_m_or_c) & 1;
         }
 
-        uint8_t zf = (s.r_f >> 0) & 1;
-        uint8_t cf = (s.r_f >> 1) & 1;
-        uint8_t of = (s.r_f >> 2) & 1;
-        uint8_t sf = (s.r_f >> 3) & 1;
-
-        uint8_t step_q0 = (s.r_s >> 0) & 1;
-        uint8_t step_q1 = (s.r_s >> 1) & 1;
-        uint8_t step_q2 = (s.r_s >> 2) & 1;
-        uint8_t step_q3 = (s.r_s >> 3) & 1;
-
-        uint32_t control_l_address = (step_q2 << 16) | (step_q1 << 15) | (step_q3 << 14) | (sf << 13) | (step_q0 << 12) | (zf << 11) | (0 << 10) | (cf << 9) | (of << 8) | s.r_o;
-        uint32_t control_h_address = (step_q2 << 16) | (step_q1 << 15) | (step_q3 << 14) | (sf << 13) | (step_q0 << 12) | (zf << 11) | (1 << 10) | (cf << 9) | (of << 8) | s.r_o;
-
-        uint8_t control_l_signals = control_rom[control_l_address];
-        uint8_t control_h_signals = control_rom[control_h_address];
-
-        s.signals.c0_or_ce_m = (control_l_signals >> 0) & 1;
-        s.signals.c1_or_ld_o = (control_l_signals >> 1) & 1;
-        s.signals.c2_or_ld_s = (control_l_signals >> 2) & 1;
-        s.signals.c3_or_ld_rs = (control_l_signals >> 3) & 1;
-        s.signals.c4_alu_op4_or_ld_io = (control_l_signals >> 4) & 1;
-        s.signals.c5_ls_alu_q_or_halt_c = (control_l_signals >> 5) & 1;
-        s.signals.ld_c = (control_l_signals >> 6) & 1;
-        s.signals.toggle_m_c = (control_l_signals >> 7) & 1;
-
-        s.signals.ld_mem = (control_h_signals >> 0) & 1;
-        s.signals.ld_ls = (control_h_signals >> 1) & 1;
-        s.signals.ld_ml = (control_h_signals >> 2) & 1;
-        s.signals.ld_mh = (control_h_signals >> 3) & 1;
-        s.signals.oe_ml = (control_h_signals >> 4) & 1;
-        s.signals.oe_mh = (control_h_signals >> 5) & 1;
-        s.signals.oe_alu = (control_h_signals >> 6) & 1;
-        s.signals.oe_mem = (control_h_signals >> 7) & 1;
-
-        s.signals.c_ld_mem = ~(s.signals.ld_mem & s.c_exec) & 1;
-        s.signals.ld_o = ~(s.signals.c1_or_ld_o & s.signals.ld_c) & 1;
-        s.signals.ld_s = ~(s.signals.c2_or_ld_s & s.signals.ld_c) & 1;
-        s.signals.ld_rs = ~(s.signals.c3_or_ld_rs & s.signals.ld_c) & 1;
-        s.signals.ld_io = ~(s.signals.c4_alu_op4_or_ld_io & s.signals.ld_c) & 1;
-        s.signals.halt = ~(s.signals.c5_ls_alu_q_or_halt_c & s.signals.ld_c) & 1;
+        s.control_signals = control_signals(s);
 
         s.address_bus = s.r_sel_m_or_c ? (0xfff0 | (s.r_c & 0xf)) : (s.r_mh << 8) | s.r_ml;
         s.en_rom = s.address_bus >> 15;
         s.en_ram = ~s.en_rom & 1;
 
-        s.data_bus = // TODO: oe_io
-            (!s.signals.oe_ml)    ? s.r_ml
-            : (!s.signals.oe_mh)  ? s.r_mh
-            : (!s.signals.oe_alu) ? s.alu.alu_q
-            : (!s.signals.oe_mem) ? ((!s.en_rom)   ? rom[s.address_bus]
-                                     : (!s.en_ram) ? ram[s.address_bus]
-                                                   : 0xff)
-                                  : 0xff;
-    } else { // C EXEC
-        s.signals.c_ld_mem = ~(s.signals.ld_mem & s.c_exec) & 1;
+        int n_oe = 0;
 
+        // Assert ML to data bus
+        if (!SIGNAL_OE_ML(s.control_signals)) {
+            s.data_bus = s.r_ml;
+            ++n_oe;
+        }
+
+        // Assert MH to data bus
+        if (!SIGNAL_OE_MH(s.control_signals)) {
+            s.data_bus = s.r_mh;
+            ++n_oe;
+        }
+
+        // Assert ALU to data bus
+        if (!SIGNAL_OE_ALU(s.control_signals)) {
+            s.data_bus = ALU_SIGNAL_Q(s.alu_signals);
+            ++n_oe;
+        }
+
+        // Assert MEM to data bus
+        if (!SIGNAL_OE_MEM(s.control_signals)) {
+            if (!s.en_rom) {
+                s.data_bus = rom[s.address_bus & 0x7fff];
+                ++n_oe;
+            }
+
+            if (!s.en_ram) {
+                s.data_bus = ram[s.address_bus & 0x7fff];
+                ++n_oe;
+            }
+        }
+
+        if (C_OE_IO(s.r_c)) {
+            // C is latched during C ~EXEC
+            ++n_oe;
+        }
+
+        if (n_oe == 0) {
+            s.data_bus = 0xff; // Data bus is pulled up
+        }
+
+        assert(n_oe <= 1 && "More then one is asserting to the data bus");
+    } else { // C EXEC
         // Latch O
-        if (!s.signals.ld_o) {
+        if (!SIGNAL_LD_O(s.control_signals)) {
             s.r_o = s.data_bus;
         }
 
         // Latch RS
-        if (!s.signals.ld_rs) {
+        if (!SIGNAL_LD_RS(s.control_signals)) {
             s.r_rs = s.data_bus;
 
-            s.alu = next_alu(&s);
+            s.alu_signals = alu_signals(s);
         }
 
         // Latch LS
-        if (!s.signals.ld_ls) {
+        if (!SIGNAL_LD_LS(s.control_signals)) {
             s.r_ls = s.data_bus;
 
-            s.alu = next_alu(&s);
+            s.alu_signals = alu_signals(s);
         }
 
         // Latch RAM (ROM is read only :))
-        if (!s.signals.c_ld_mem && !s.en_ram) {
+        if (!SIGNAL_C_LD_MEM(s.control_signals, s.c_exec) && !s.en_ram) {
             ram[s.address_bus & 0x7fff] = s.data_bus;
         }
     }
 
     // Latch IO
-    if (!s.signals.ld_io) {
+    if (!SIGNAL_LD_IO(s.control_signals)) {
         // TODO: Use r_o to know which port.
+        assert(0 && "Latch IO not yet implemented");
     }
 
     // Latch F
-    if (!s.signals.oe_alu && !s.signals.ld_ls) {
-        s.r_f = ((s.alu.alu_q >> 4) << 3) |
-                (s.alu.alu_q_of << 2) |
-                (s.alu.alu_q_cf << 1) |
-                (s.alu.alu_q_zf << 0);
+    if (!SIGNAL_OE_ALU(s.control_signals) && !SIGNAL_LD_LS(s.control_signals)) {
+        s.r_f = (ALU_SIGNAL_Q(s.alu_signals) << 3) | // SF
+                (ALU_SIGNAL_Q_OF(s.alu_signals) << 2) |
+                (ALU_SIGNAL_Q_CF(s.alu_signals) << 1) |
+                (ALU_SIGNAL_Q_ZF(s.alu_signals) << 0);
 
-        s.alu = next_alu(&s);
+        s.alu_signals = alu_signals(s);
     }
 
     return s;
 }
 
-int main(void) {
-    FILE *file = fopen("./bin/control.bin", "r");
+int main(int argc, char **argv) {
+    if (argc < 2) {
+        fprintf(stderr, "Missing program\n");
+        exit(1);
+    }
+
+    FILE *file = fopen(argv[1], "r");
+    assert(file != NULL && "Failed to read program");
+
+    fseek(file, 0, SEEK_END);
+    size_t program_size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    assert(program_size <= (RAM_SIZE - 0x1000) && "Program too big");
+
+    size_t read_bytes = fread(ram + 0x1000, sizeof(uint8_t), program_size, file);
+    assert(read_bytes == program_size && "Failed to read entire contents of program");
+    assert(fclose(file) == 0 && "Failed to close file");
+
+    file = fopen("./bin/control.bin", "r");
     assert(file != NULL && "Failed to read control.bin");
-    int read_bytes = fread(control_rom, sizeof(uint8_t), CONTROL_ROM_SIZE, file);
+    read_bytes = fread(control_rom, sizeof(uint8_t), CONTROL_ROM_SIZE, file);
     assert(read_bytes == CONTROL_ROM_SIZE && "Failed to read the entire contents of control.bin");
     assert(fclose(file) == 0 && "Failed to close file");
 
@@ -412,34 +513,45 @@ int main(void) {
     assert(read_bytes == ALU_ROM_SIZE && "Failed to read the entire contents of alu_high.bin");
     assert(fclose(file) == 0 && "Failed to close file");
 
-    rom[0] = 0x01;
-    rom[1] = 0xab;
+    rom[0] = 0x92; // jmp 0x9000
+    rom[1] = 0x00;
+    rom[2] = 0x90;
 
-    // Reset
-    State state = {0};
-    state.c_exec = 1;
+    // Reset by running an initial setup phase where S is 0 afterwards.
+    State state = next_state((State){.c_exec = 1,
+                                     .r_s = 0xf});
 
-    //
-    state = next_state(state);
-    // print_state(&state);
+    int n_instructions = 0;
 
-    state = next_state(state);
-    print_state(&state);
+    struct timespec ts = {
+        .tv_sec = 0,
+        .tv_nsec = 250e6, // 250 ms
+    };
 
-    //
-    state = next_state(state);
-    // print_state(&state);
+    while (1) {
+        // Execute
+        state = next_state(state);
+        print_state(state);
 
-    state = next_state(state);
-    print_state(&state);
+        nanosleep(&ts, NULL);
 
-    //
-    state = next_state(state);
-    state = next_state(state);
+        if (!SIGNAL_LD_S(state.control_signals)) {
+            ++n_instructions;
 
-    print_state(&state);
+            if (n_instructions >= 100) {
+                break;
+            }
+        }
 
-    printf("%02x\n", ram[0x7ff0]);
+        // Setup
+        state = next_state(state);
+        print_state(state);
+
+        nanosleep(&ts, NULL);
+    }
+
+    // printf("%02x\n", ram[0x7ff5]);
+    // printf("%02x\n", ram[0x7ff6]);
 
     return 0;
 }

@@ -43,4 +43,5 @@ message2:
     #d "   BLEH-1!!!  \0"
 
 
-#include "lcd.asm"
+LCD_PORT = 2
+#include "../libraries/lcd.asm"

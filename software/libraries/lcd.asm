@@ -1,5 +1,3 @@
-LCD_PORT = 2
-
 RS_IR = 0 << 7
 RS_DR = 1 << 7
 
@@ -9,20 +7,11 @@ RW_READ = 1 << 6
 E_HIGH = 1 << 5
 E_LOW = 0 << 5
 
-
 lcd_reset:
     out LCD_PORT, RS_IR | RW_WRITE | E_HIGH | 0b0011
     out LCD_PORT, RS_IR | RW_WRITE | E_LOW | 0b0011
 
-    nop
-    nop
-    nop
-    nop
-
-    out LCD_PORT, RS_IR | RW_WRITE | E_HIGH  | 0b0011
-    out LCD_PORT, RS_IR | RW_WRITE | E_LOW | 0b0011
-
-    nop
+    nop ; TODO: Delay 4.3ms
     nop
     nop
     nop
@@ -30,7 +19,15 @@ lcd_reset:
     out LCD_PORT, RS_IR | RW_WRITE | E_HIGH  | 0b0011
     out LCD_PORT, RS_IR | RW_WRITE | E_LOW | 0b0011
 
+    nop ; TODO: Delay 4.3ms
     nop
+    nop
+    nop
+
+    out LCD_PORT, RS_IR | RW_WRITE | E_HIGH  | 0b0011
+    out LCD_PORT, RS_IR | RW_WRITE | E_LOW | 0b0011
+
+    nop ; TODO: Delay 100 us
     nop
     nop
     nop
@@ -100,6 +97,7 @@ lcd_clear_display:
     ret
 
 lcd_set_cgram_address:
+    ; TODO: Currently hard coded for line two (0x28 (40))
     ld j, .not_busy
     jmp _lcd_busy_wait_ret_to_j
     .not_busy:
