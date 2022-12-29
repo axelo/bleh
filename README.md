@@ -64,3 +64,13 @@ Using the [arduino boot device](./arduino/BootDeviceSketch/BootDeviceSketch.ino)
 
     customasm -q customasm_ram.asm ./software/ram/3_test.asm --print --format intelhex
 
+
+## Emulator
+
+### Compile
+
+    clang -fsanitize=address,integer -Wall -Wextra -Wpedantic -std=c17 -Werror -o ./bin/emulator emulator.c
+
+### Run
+
+    ./bin/emulator <PROGRAM TO RUN>

@@ -1,15 +1,19 @@
 #include <assert.h>
 #include <stdint.h>
-#include <stdio.h>
+#include <stdio.h> // f*
 #include <stdlib.h> // exit
 #include <time.h> // nanosleep
 
 #define CLOCK_DELAY_MS (60) // TODO: Change to HZ
+#define EXIT_AFTER_N_INSTRUCTIONS (100) // TODO: Probably an in parameter
 
 #define CONTROL_ROM_SIZE (1 << 17)
 #define ALU_ROM_SIZE (1 << 17)
 #define ROM_SIZE (1 << 15)
 #define RAM_SIZE (1 << 15)
+
+#define RAM_ABSOLUTE_START_ADDRESS (0x8000)
+#define PROGRAM_RAM_RELATIVE_START_ADDRESS (0x1000) // TODO: Probably an in parameter or parse `customasm_ram.asm`
 
 // Control low signals
 #define SIGNAL_C0_OR_CE_M(signals) (((signals) >> 0) & 1)
@@ -78,8 +82,8 @@ typedef struct {
     uint16_t alu_signals;
 
     uint16_t address_bus;
-    uint8_t en_rom;
-    uint8_t en_ram;
+    uint8_t en_rom; // TODO: macro
+    uint8_t en_ram; // TODO: macro
 
     uint8_t data_bus;
 } State;
@@ -90,12 +94,13 @@ static uint8_t alu_high_rom[ALU_ROM_SIZE];
 
 static uint8_t rom[RAM_SIZE];
 static uint8_t ram[RAM_SIZE];
-
 static uint8_t io_ports[8];
 
 static int n_instructions = 0;
 
 static void print_state(State s) {
+    // TODO: Write to a buffer that do one write to stdout.
+
     printf("\033[2J\033[3J"); // Clear the viewport and the screen, the order seems to be important
     printf("\033[H"); // Position cursor at top-left corner
 
@@ -172,113 +177,14 @@ static void print_state(State s) {
            io_ports[6],
            io_ports[7]);
 
-    return;
-
-    printf(
-        "\n"
-        "            C EXEC: %d\n"
-        "\n"
-        "           C0/CE M: %d\n"
-        "           C1/LD O: %d\n"
-        "           C2/LD S: %d\n"
-        "          C3/LD RS: %d\n"
-        "  C4 ALU OP4/LD IO: %d\n"
-        "C5 LS ALU Q/HALT C: %d\n"
-        "             ~LD C: %d\n"
-        "       TOGGLE ~M/C: %d\n"
-        "\n"
-        "            LD MEM: %d\n"
-        "            ~LD LS: %d\n"
-        "            ~LD ML: %d\n"
-        "            ~LD MH: %d\n"
-        "            ~OE ML: %d\n"
-        "            ~OE MH: %d\n"
-        "           ~OE ALU: %d\n"
-        "           ~OE MEM: %d\n"
-        "\n"
-        "         C ~LD MEM: %d\n"
-        "             ~LD O: %d\n"
-        "             ~LD S: %d\n"
-        "            ~LD RS: %d\n"
-        "            ~LD IO: %d\n"
-        "             ~HALT: %d\n"
-        "\n"
-        "               BUS: 0x%02x\n"
-        "       ADDRESS BUS: 0x%04x\n"
-        "           ~EN ROM: %d\n"
-        "           ~EN RAM: %d\n"
-        "\n"
-        "                 S: 0x%x\n"
-        "                 O: 0x%02x\n"
-        "                 F: 0x%x\n"
-        "          SEL ~M/C: %d\n"
-        "                 C: 0x%02x\n"
-        "                LS: 0x%02x\n"
-        "                RS: 0x%02x\n"
-        "                ML: 0x%02x\n"
-        "                MH: 0x%02x\n"
-        "\n"
-        "          ALU Q ZF: %d\n"
-        "       ALU Q IO OE: %d\n"
-        "          ALU Q CF: %d\n"
-        "          ALU Q OF: %d\n"
-        "             ALU Q: 0x%02x\n",
-        s.c_exec,
-
-        SIGNAL_C0_OR_CE_M(s.control_signals),
-        SIGNAL_C1_OR_LD_O(s.control_signals),
-        SIGNAL_C2_OR_LD_S(s.control_signals),
-        SIGNAL_C3_OR_LD_RS(s.control_signals),
-        SIGNAL_C4_ALU_OP4_OR_LD_IO(s.control_signals),
-        SIGNAL_C5_LS_ALU_Q_OR_HALT_C(s.control_signals),
-        SIGNAL_LD_C(s.control_signals),
-        SIGNAL_TOGGLE_M_C(s.control_signals),
-
-        SIGNAL_LD_MEM(s.control_signals),
-        SIGNAL_LD_LS(s.control_signals),
-        SIGNAL_LD_ML(s.control_signals),
-        SIGNAL_LD_MH(s.control_signals),
-        SIGNAL_OE_ML(s.control_signals),
-        SIGNAL_OE_MH(s.control_signals),
-        SIGNAL_OE_ALU(s.control_signals),
-        SIGNAL_OE_MEM(s.control_signals),
-
-        SIGNAL_C_LD_MEM(s.control_signals, s.c_exec),
-        SIGNAL_LD_O(s.control_signals),
-        SIGNAL_LD_S(s.control_signals),
-        SIGNAL_LD_RS(s.control_signals),
-        SIGNAL_LD_IO(s.control_signals),
-        SIGNAL_HALT(s.control_signals),
-
-        s.data_bus,
-        s.address_bus,
-        s.en_rom,
-        s.en_ram,
-
-        s.r_s,
-        s.r_o,
-        s.r_f,
-        s.r_sel_m_or_c,
-        s.r_c,
-        s.r_ls,
-        s.r_rs,
-        s.r_ml,
-        s.r_mh,
-
-        ALU_SIGNAL_Q_ZF(s.alu_signals),
-        ALU_SIGNAL_Q_IO_OE(s.alu_signals),
-        ALU_SIGNAL_Q_CF(s.alu_signals),
-        ALU_SIGNAL_Q_OF(s.alu_signals),
-        ALU_SIGNAL_Q(s.alu_signals));
-
     fflush(stdout);
 }
 
 static uint16_t control_signals(State s) {
-    uint8_t zf = (s.r_f >> 0) & 1;
-    uint8_t cf = (s.r_f >> 1) & 1;
-    uint8_t of = (s.r_f >> 2) & 1;
-    uint8_t sf = (s.r_f >> 3) & 1;
+    uint8_t zf = (s.r_f >> 0) & 1; // TODO: macro
+    uint8_t cf = (s.r_f >> 1) & 1; // TODO: macro
+    uint8_t of = (s.r_f >> 2) & 1; // TODO: macro
+    uint8_t sf = (s.r_f >> 3) & 1; // TODO: macro
 
     uint8_t step_q0 = (s.r_s >> 0) & 1;
     uint8_t step_q1 = (s.r_s >> 1) & 1;
@@ -295,7 +201,7 @@ static uint16_t control_signals(State s) {
 }
 
 static uint16_t alu_signals(State s) {
-    uint8_t cf = (s.r_f >> 1) & 1; // TODO: #define
+    uint8_t cf = (s.r_f >> 1) & 1; // TODO: macro
 
     uint8_t c_q0 = (s.r_c >> 0) & 1;
     uint8_t c_q1 = (s.r_c >> 1) & 1;
@@ -310,7 +216,7 @@ static uint16_t alu_signals(State s) {
     uint8_t alu_h_qz = ALU_SIGNAL_H_QZ(s.alu_signals);
     uint8_t alu_h_qc = ALU_SIGNAL_H_QC(s.alu_signals);
 
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < 5; ++i) {
         uint32_t alu_l_address = (c_q5 << 16) | (alu_h_qc << 15) | (c_q4 << 14) | (c_q3 << 13) | (alu_h_qz << 12) | (c_q2 << 11) | (c_q1 << 10) | (c_q0 << 9) | (cf << 8) | ((s.r_rs & 0xf) << 4) | (s.r_ls & 0xf);
         uint32_t alu_h_address = (c_q5 << 16) | (alu_l_qc << 15) | (c_q4 << 14) | (c_q3 << 13) | (alu_l_qz << 12) | (c_q2 << 11) | (c_q1 << 10) | (c_q0 << 9) | (cf << 8) | ((s.r_rs >> 4) << 4) | (s.r_ls >> 4);
 
@@ -325,7 +231,7 @@ static uint16_t alu_signals(State s) {
         if (alu_l_qz == alu_l_q0_alu_l_qz && alu_l_qc == alu_l_q1_alu_l_qc &&
             alu_h_qz == alu_h_q0_alu_h_qz && alu_h_qc == alu_h_q1_alu_h_qc) {
 
-            if (i > 1) {
+            if (i > 2) {
                 // TODO: Temp.
                 printf("\n I: %d\n", i);
                 exit(0);
@@ -377,6 +283,7 @@ static State next_state(State s) {
 
             if (C_OE_IO(s.r_c)) {
                 // TODO: Use r_o to know which port.
+                // TODO: Update emulated IO devices
                 assert(0 && "OE IO not yet implemented");
             }
         }
@@ -432,12 +339,12 @@ static State next_state(State s) {
         // Assert MEM to data bus
         if (!SIGNAL_OE_MEM(s.control_signals)) {
             if (!s.en_rom) {
-                s.data_bus = rom[s.address_bus & 0x7fff];
+                s.data_bus = rom[s.address_bus & (RAM_ABSOLUTE_START_ADDRESS - 1)];
                 ++n_oe;
             }
 
             if (!s.en_ram) {
-                s.data_bus = ram[s.address_bus & 0x7fff];
+                s.data_bus = ram[s.address_bus & (RAM_ABSOLUTE_START_ADDRESS - 1)];
                 ++n_oe;
             }
         }
@@ -474,13 +381,8 @@ static State next_state(State s) {
 
         // Latch RAM (ROM is read only :))
         if (!SIGNAL_C_LD_MEM(s.control_signals, s.c_exec) && !s.en_ram) {
-            ram[s.address_bus & 0x7fff] = s.data_bus;
+            ram[s.address_bus & (RAM_ABSOLUTE_START_ADDRESS - 1)] = s.data_bus;
         }
-    }
-
-    // Latch IO
-    if (!SIGNAL_LD_IO(s.control_signals)) {
-        io_ports[s.r_o & 7] = s.data_bus;
     }
 
     // Latch F
@@ -491,6 +393,13 @@ static State next_state(State s) {
                 (ALU_SIGNAL_Q_ZF(s.alu_signals) << 0);
 
         s.alu_signals = alu_signals(s);
+    }
+
+    // Latch IO
+    if (!SIGNAL_LD_IO(s.control_signals)) {
+        io_ports[s.r_o & 7] = s.data_bus;
+
+        // TODO: Update emulated IO devices
     }
 
     return s;
@@ -508,9 +417,9 @@ int main(int argc, char **argv) {
     fseek(file, 0, SEEK_END);
     size_t program_size = ftell(file);
     fseek(file, 0, SEEK_SET);
-    assert(program_size <= (RAM_SIZE - 0x1000) && "Program too big");
+    assert(program_size <= (RAM_SIZE - PROGRAM_RAM_RELATIVE_START_ADDRESS) && "Program too big");
 
-    size_t read_bytes = fread(ram + 0x1000, sizeof(uint8_t), program_size, file);
+    size_t read_bytes = fread(ram + PROGRAM_RAM_RELATIVE_START_ADDRESS, sizeof(uint8_t), program_size, file);
     assert(read_bytes == program_size && "Failed to read entire contents of program");
     assert(fclose(file) == 0 && "Failed to close file");
 
@@ -532,9 +441,9 @@ int main(int argc, char **argv) {
     assert(read_bytes == ALU_ROM_SIZE && "Failed to read the entire contents of alu_high.bin");
     assert(fclose(file) == 0 && "Failed to close file");
 
-    rom[0] = 0x92; // jmp 0x9000
-    rom[1] = 0x00;
-    rom[2] = 0x90;
+    rom[0] = 0x92; // jmp imm16
+    rom[1] = (RAM_ABSOLUTE_START_ADDRESS + PROGRAM_RAM_RELATIVE_START_ADDRESS) & 0xff;
+    rom[2] = (RAM_ABSOLUTE_START_ADDRESS + PROGRAM_RAM_RELATIVE_START_ADDRESS) >> 8;
 
     // Reset by running an initial setup phase where S is 0 afterwards.
     State state = next_state((State){.c_exec = 1,
@@ -555,7 +464,7 @@ int main(int argc, char **argv) {
         if (!SIGNAL_LD_S(state.control_signals)) {
             ++n_instructions;
 
-            if (n_instructions >= 100) {
+            if (n_instructions >= EXIT_AFTER_N_INSTRUCTIONS) {
                 break;
             }
         }
@@ -566,9 +475,6 @@ int main(int argc, char **argv) {
 
         nanosleep(&ts, NULL);
     }
-
-    // printf("%02x\n", ram[0x7ff5]);
-    // printf("%02x\n", ram[0x7ff6]);
 
     return 0;
 }
