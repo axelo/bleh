@@ -4,7 +4,6 @@
 #include <stdlib.h> // exit
 #include <time.h> // nanosleep
 
-#define CLOCK_DELAY_MS (60) // TODO: Change to HZ
 #define EXIT_AFTER_N_INSTRUCTIONS (100) // TODO: Probably an in parameter
 
 #define CONTROL_ROM_SIZE (1 << 17)
@@ -63,7 +62,22 @@
 // ALU combined signals
 #define ALU_SIGNAL_Q(alu_signals) ((((alu_signals) >> 8) & 0xf0) | ((alu_signals) >> 4) & 0x0f)
 
+// C signals
 #define C_OE_IO(c_q) (((c_q) >> 6) & 1) // Active high
+
+// Based on address bus signals
+#define SIGNAL_EN_ROM(address_bus) (((address_bus) >> 15) & 1)
+#define SIGNAL_EN_RAM(address_bus) (~SIGNAL_EN_ROM(address_bus) & 1)
+
+#define F_ZF(r_f) (((r_f) >> 0) & 1)
+#define F_CF(r_f) (((r_f) >> 1) & 1)
+#define F_OF(r_f) (((r_f) >> 2) & 1)
+#define F_SF(r_f) (((r_f) >> 3) & 1)
+
+#define S_Q0(r_s) (((r_s) >> 0) & 1)
+#define S_Q1(r_s) (((r_s) >> 1) & 1)
+#define S_Q2(r_s) (((r_s) >> 2) & 1)
+#define S_Q3(r_s) (((r_s) >> 3) & 1)
 
 typedef struct {
     uint8_t c_exec; // 1 bit
@@ -82,9 +96,6 @@ typedef struct {
     uint16_t alu_signals;
 
     uint16_t address_bus;
-    uint8_t en_rom; // TODO: macro
-    uint8_t en_ram; // TODO: macro
-
     uint8_t data_bus;
 } State;
 
@@ -97,6 +108,7 @@ static uint8_t ram[RAM_SIZE];
 static uint8_t io_ports[8];
 
 static int n_instructions = 0;
+static uint32_t clock_hz = 20;
 
 static void print_state(State s) {
     // TODO: Write to a buffer then do one write to stdout.
@@ -180,29 +192,7 @@ static void print_state(State s) {
     fflush(stdout);
 }
 
-static uint16_t control_signals(State s) {
-    uint8_t zf = (s.r_f >> 0) & 1; // TODO: macro
-    uint8_t cf = (s.r_f >> 1) & 1; // TODO: macro
-    uint8_t of = (s.r_f >> 2) & 1; // TODO: macro
-    uint8_t sf = (s.r_f >> 3) & 1; // TODO: macro
-
-    uint8_t step_q0 = (s.r_s >> 0) & 1;
-    uint8_t step_q1 = (s.r_s >> 1) & 1;
-    uint8_t step_q2 = (s.r_s >> 2) & 1;
-    uint8_t step_q3 = (s.r_s >> 3) & 1;
-
-    uint32_t control_l_address = (step_q2 << 16) | (step_q1 << 15) | (step_q3 << 14) | (sf << 13) | (step_q0 << 12) | (zf << 11) | (0 << 10) | (cf << 9) | (of << 8) | s.r_o;
-    uint32_t control_h_address = (step_q2 << 16) | (step_q1 << 15) | (step_q3 << 14) | (sf << 13) | (step_q0 << 12) | (zf << 11) | (1 << 10) | (cf << 9) | (of << 8) | s.r_o;
-
-    uint8_t control_l_signals = control_rom[control_l_address];
-    uint8_t control_h_signals = control_rom[control_h_address];
-
-    return (control_h_signals << 8) | control_l_signals;
-}
-
 static uint16_t alu_signals(State s) {
-    uint8_t cf = (s.r_f >> 1) & 1; // TODO: macro
-
     uint8_t c_q0 = (s.r_c >> 0) & 1;
     uint8_t c_q1 = (s.r_c >> 1) & 1;
     uint8_t c_q2 = (s.r_c >> 2) & 1;
@@ -217,8 +207,8 @@ static uint16_t alu_signals(State s) {
     uint8_t alu_h_qc = ALU_SIGNAL_H_QC(s.alu_signals);
 
     for (int i = 0; i < 5; ++i) {
-        uint32_t alu_l_address = (c_q5 << 16) | (alu_h_qc << 15) | (c_q4 << 14) | (c_q3 << 13) | (alu_h_qz << 12) | (c_q2 << 11) | (c_q1 << 10) | (c_q0 << 9) | (cf << 8) | ((s.r_rs & 0xf) << 4) | (s.r_ls & 0xf);
-        uint32_t alu_h_address = (c_q5 << 16) | (alu_l_qc << 15) | (c_q4 << 14) | (c_q3 << 13) | (alu_l_qz << 12) | (c_q2 << 11) | (c_q1 << 10) | (c_q0 << 9) | (cf << 8) | ((s.r_rs >> 4) << 4) | (s.r_ls >> 4);
+        uint32_t alu_l_address = (c_q5 << 16) | (alu_h_qc << 15) | (c_q4 << 14) | (c_q3 << 13) | (alu_h_qz << 12) | (c_q2 << 11) | (c_q1 << 10) | (c_q0 << 9) | (F_CF(s.r_f) << 8) | ((s.r_rs & 0xf) << 4) | (s.r_ls & 0xf);
+        uint32_t alu_h_address = (c_q5 << 16) | (alu_l_qc << 15) | (c_q4 << 14) | (c_q3 << 13) | (alu_l_qz << 12) | (c_q2 << 11) | (c_q1 << 10) | (c_q0 << 9) | (F_CF(s.r_f) << 8) | ((s.r_rs >> 4) << 4) | (s.r_ls >> 4);
 
         uint16_t alu_signals = (alu_high_rom[alu_h_address] << 8) | alu_low_rom[alu_l_address];
 
@@ -310,11 +300,12 @@ static State next_state(State s) {
             s.r_sel_m_or_c = (!s.r_sel_m_or_c) & 1;
         }
 
-        s.control_signals = control_signals(s);
+        uint32_t control_l_address = (S_Q2(s.r_s) << 16) | (S_Q1(s.r_s) << 15) | (S_Q3(s.r_s) << 14) | (F_SF(s.r_f) << 13) | (S_Q0(s.r_s) << 12) | (F_ZF(s.r_f) << 11) | (0 << 10) | (F_CF(s.r_f) << 9) | (F_OF(s.r_f) << 8) | s.r_o;
+        uint32_t control_h_address = (S_Q2(s.r_s) << 16) | (S_Q1(s.r_s) << 15) | (S_Q3(s.r_s) << 14) | (F_SF(s.r_f) << 13) | (S_Q0(s.r_s) << 12) | (F_ZF(s.r_f) << 11) | (1 << 10) | (F_CF(s.r_f) << 9) | (F_OF(s.r_f) << 8) | s.r_o;
+
+        s.control_signals = (control_rom[control_h_address] << 8) | control_rom[control_l_address];
 
         s.address_bus = s.r_sel_m_or_c ? (0xfff0 | (s.r_c & 0xf)) : (s.r_mh << 8) | s.r_ml;
-        s.en_rom = s.address_bus >> 15;
-        s.en_ram = ~s.en_rom & 1;
 
         int n_oe = 0;
 
@@ -338,12 +329,12 @@ static State next_state(State s) {
 
         // Assert MEM to data bus
         if (!SIGNAL_OE_MEM(s.control_signals)) {
-            if (!s.en_rom) {
+            if (!SIGNAL_EN_ROM(s.address_bus)) {
                 s.data_bus = rom[s.address_bus & (RAM_ABSOLUTE_START_ADDRESS - 1)];
                 ++n_oe;
             }
 
-            if (!s.en_ram) {
+            if (!SIGNAL_EN_RAM(s.address_bus)) {
                 s.data_bus = ram[s.address_bus & (RAM_ABSOLUTE_START_ADDRESS - 1)];
                 ++n_oe;
             }
@@ -380,7 +371,7 @@ static State next_state(State s) {
         }
 
         // Latch RAM (ROM is read only :))
-        if (!SIGNAL_C_LD_MEM(s.control_signals, s.c_exec) && !s.en_ram) {
+        if (!SIGNAL_C_LD_MEM(s.control_signals, s.c_exec) && !SIGNAL_EN_RAM(s.address_bus)) {
             ram[s.address_bus & (RAM_ABSOLUTE_START_ADDRESS - 1)] = s.data_bus;
         }
     }
@@ -408,6 +399,15 @@ static State next_state(State s) {
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "Missing program\n");
+        exit(1);
+    }
+
+    if (argc > 2) {
+        clock_hz = (uint32_t)strtoul(argv[2], NULL, 10);
+    }
+
+    if (clock_hz < 1 || clock_hz > 16000000) {
+        fprintf(stderr, "Unsupported clock rate: %u\n", clock_hz);
         exit(1);
     }
 
@@ -450,8 +450,8 @@ int main(int argc, char **argv) {
                                      .r_s = 0xf});
 
     struct timespec ts = {
-        .tv_sec = 0,
-        .tv_nsec = (CLOCK_DELAY_MS)*1e6,
+        .tv_sec = clock_hz <= 1 ? 1 : 0,
+        .tv_nsec = clock_hz <= 1 ? 0 : (1000000000 / clock_hz),
     };
 
     while (1) {
