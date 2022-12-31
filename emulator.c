@@ -108,7 +108,6 @@ static uint8_t ram[RAM_SIZE];
 static uint8_t io_ports[8];
 
 static int n_instructions = 0;
-static uint32_t clock_hz = 20;
 
 static void print_state(State s) {
     // TODO: Write to a buffer then do one write to stdout.
@@ -402,9 +401,9 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    if (argc > 2) {
-        clock_hz = (uint32_t)strtoul(argv[2], NULL, 10);
-    }
+    uint32_t clock_hz = argc > 2
+                            ? (uint32_t)strtoul(argv[2], NULL, 10)
+                            : 20;
 
     if (clock_hz < 1 || clock_hz > 16000000) {
         fprintf(stderr, "Unsupported clock rate: %u\n", clock_hz);
