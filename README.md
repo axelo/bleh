@@ -83,4 +83,4 @@ Then compile your program using `customasm` togheter with `customasm_ram.asm`:
 
 Then finally run the program using the emulator:
 
-    ./bin/emulator <PROGRAM TO RUN>.bin
+    ./bin/emulator <PROGRAM TO RUN>.bin [CLOCK FREQUENCY]
