@@ -4,7 +4,7 @@
 #include <stdlib.h> // exit
 #include <time.h> // nanosleep
 
-#define EXIT_AFTER_N_INSTRUCTIONS (100) // TODO: Probably an in parameter
+#define EXIT_AFTER_N_INSTRUCTIONS (1000) // TODO: Probably an in parameter
 
 #define CONTROL_ROM_SIZE (1 << 17)
 #define ALU_ROM_SIZE (1 << 17)
