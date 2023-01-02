@@ -82,6 +82,7 @@
 
 #define IO_LD_DEBUG_PORT (1) // TODO: Probably an in parameter
 #define IO_LD_LCD_PORT (2) // TODO: Probably an in parameter
+#define IO_OE_LCD_PORT (2) // TODO: Probably an in parameter
 
 #define LCD_SIGNAL_RS(data_bus) (((data_bus) >> 7) & 1)
 #define LCD_SIGNAL_RW(data_bus) (((data_bus) >> 6) & 1)
@@ -124,20 +125,19 @@ typedef struct {
     bool rw;
     bool e;
 
-    bool next_is_lower_4bit;
-    uint8_t resetting;
-    int8_t busy;
-
     uint8_t ac;
     uint8_t lines;
     uint8_t columns;
     bool display_on;
-    bool cursor_on;
-    bool cursor_blink_on;
-
+    bool cursor_on; // TODO: Render cursor
+    bool cursor_blink_on; // TODO: Render blink
     bool entry_mode; // 0 = Decrements, 1 = Increments
 
-    uint8_t ddram[80];
+    uint8_t ddram[80]; // Display data ram
+
+    bool next_is_lower_4bit;
+    uint8_t resetting;
+    int8_t busy;
 } IO_LCD;
 
 static IO_LCD io_lcd = {0};
@@ -228,24 +228,28 @@ static void print_state(CPU cpu) {
            (ram[0x7ff6] << 8) | ram[0x7ff5],
            (ram[0x7ff8] << 8) | ram[0x7ff7]);
 
-    printf("╔");
-    for (int x = 0; x < io_lcd.columns; ++x) {
-        printf("═");
-    }
-    puts("╗");
-    for (int y = 0; y < io_lcd.lines; ++y) {
-        printf("║");
+    if (io_lcd.display_on) {
+        printf("╔");
         for (int x = 0; x < io_lcd.columns; ++x) {
-            uint8_t c = io_lcd.ddram[y * 40 + x];
-            putc(c ? c : ' ', stdout);
+            printf("═");
         }
-        puts("║");
+        puts("╗");
+        for (int y = 0; y < io_lcd.lines; ++y) {
+            printf("║");
+            for (int x = 0; x < io_lcd.columns; ++x) {
+                uint8_t c = io_lcd.ddram[y * 40 + x];
+                putc(c ? c : ' ', stdout);
+            }
+            puts("║");
+        }
+        printf("╚");
+        for (int x = 0; x < io_lcd.columns; ++x) {
+            printf("═");
+        }
+        puts("╝");
+    } else {
+        printf("LCD display turned off\n");
     }
-    printf("╚");
-    for (int x = 0; x < io_lcd.columns; ++x) {
-        printf("═");
-    }
-    puts("╝");
 
     fflush(stdout);
 }
@@ -256,13 +260,6 @@ static void update_io_ld(CPU cpu) {
     if (port == IO_LD_DEBUG_PORT) {
         // Do nothing
     } else if (port == IO_LD_LCD_PORT) {
-        // printf("BEFORE IR: 0x%02x   DR: 0x%02x   N: %d\n",
-        //        io_lcd.ir, io_lcd.dr,
-        //        io_lcd.next_is_lower_4bit);
-
-        // printf("RS: %d   RW: %d   E: %d   D: 0x%x\n",
-        //        LCD_SIGNAL_RS(cpu.data_bus), LCD_SIGNAL_RW(cpu.data_bus), LCD_SIGNAL_E(cpu.data_bus),
-        //        LCD_SIGNAL_DATA(cpu.data_bus));
         bool e_toggled = !io_lcd.e && LCD_SIGNAL_E(cpu.data_bus);
 
         io_lcd.rs = LCD_SIGNAL_RS(cpu.data_bus);
@@ -381,10 +378,6 @@ static void update_io_ld(CPU cpu) {
                             assert(0 && "Unsupported LCD instruction");
                         }
                     }
-
-                    // printf("AFTER IR: 0x%02x   DR: 0x%02x   N: %d\n\n",
-                    //        io_lcd.ir, io_lcd.dr,
-                    //        io_lcd.next_is_lower_4bit);
                 }
             }
         }
@@ -397,7 +390,7 @@ static void update_io_ld(CPU cpu) {
 static uint8_t update_io_oe(CPU cpu) {
     uint8_t port = cpu.r_o & 7;
 
-    if (port == IO_LD_LCD_PORT) {
+    if (port == IO_OE_LCD_PORT) {
         if (io_lcd.e) {
             assert(io_lcd.rw == 1 && "LCD: Read not selected");
 
@@ -421,7 +414,7 @@ static uint8_t update_io_oe(CPU cpu) {
             return 0xff;
         }
     } else {
-        assert(0 && "IO port has no output enable");
+        assert(0 && "IO port has no configured output enable");
     }
 }
 
