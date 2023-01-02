@@ -69,7 +69,7 @@ lcd_display_on_cursor_on_blink_off:
     ; C = 0; Cursor off
     ; B = 0; Blinking off
     out LCD_PORT, RS_IR | RW_WRITE | E_HIGH | 0b1100 ; 1DCB
-    out LCD_PORT, RS_IR | RW_WRITE | E_LOW | 0b1101
+    out LCD_PORT, RS_IR | RW_WRITE | E_LOW | 0b1100
     ret
 
 lcd_return_home:
@@ -102,8 +102,8 @@ lcd_set_cgram_address:
     jmp _lcd_busy_wait_ret_to_j
     .not_busy:
 
-    out LCD_PORT, RS_IR | RW_WRITE | E_HIGH | 0b1010
-    out LCD_PORT, RS_IR | RW_WRITE | E_LOW | 0b1010
+    out LCD_PORT, RS_IR | RW_WRITE | E_HIGH | 0b0110
+    out LCD_PORT, RS_IR | RW_WRITE | E_LOW | 0b0110
 
     out LCD_PORT, RS_IR | RW_WRITE | E_HIGH | 0b1000
     out LCD_PORT, RS_IR | RW_WRITE | E_LOW | 0b1000
