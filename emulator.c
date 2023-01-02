@@ -573,7 +573,7 @@ static CPU update_cpu(CPU cpu) {
 
         assert(n_oe <= 1 && "More then one is asserting to the data bus");
     } else { // C EXEC
-        uint8_t update_alu_signals = 0;
+        bool update_alu_signals = false;
 
         // Latch O
         if (!SIGNAL_LD_O(cpu.control_signals)) {
@@ -584,14 +584,14 @@ static CPU update_cpu(CPU cpu) {
         if (!SIGNAL_LD_RS(cpu.control_signals)) {
             cpu.r_rs = cpu.data_bus;
 
-            update_alu_signals = 1;
+            update_alu_signals = true;
         }
 
         // Latch LS
         if (!SIGNAL_LD_LS(cpu.control_signals)) {
             cpu.r_ls = cpu.data_bus;
 
-            update_alu_signals = 1;
+            update_alu_signals = true;
         }
 
         // Latch RAM (ROM is read only :))
@@ -606,7 +606,7 @@ static CPU update_cpu(CPU cpu) {
                       (ALU_SIGNAL_Q_CF(cpu.alu_signals) << 1) |
                       (ALU_SIGNAL_Q_ZF(cpu.alu_signals) << 0);
 
-            update_alu_signals = 1;
+            update_alu_signals = true;
         }
 
         // Latch IO
