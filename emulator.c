@@ -5,7 +5,7 @@
 #include <stdlib.h> // exit
 #include <time.h> // nanosleep
 
-#define EXIT_AFTER_N_INSTRUCTIONS (5000) // TODO: Probably an in parameter
+#define EXIT_AFTER_N_INSTRUCTIONS (50000) // TODO: Probably an in parameter
 
 #define CONTROL_ROM_SIZE (1 << 17)
 #define ALU_ROM_SIZE (1 << 17)
@@ -143,6 +143,7 @@ typedef struct {
 static IO_LCD io_lcd = {0};
 
 static int n_instructions = 0;
+static bool step_by_keyboard = false;
 
 static void print_state(CPU cpu) {
     // TODO: Write to a buffer then do one write to stdout.
@@ -228,6 +229,18 @@ static void print_state(CPU cpu) {
            (ram[0x7ff6] << 8) | ram[0x7ff5],
            (ram[0x7ff8] << 8) | ram[0x7ff7]);
 
+    printf("RAM DUMP at 0x9200 - 0x9203\n");
+    printf("%3d %3d %3d %3d => %d\n",
+           ram[0x9200 - RAM_ABSOLUTE_START_ADDRESS],
+           ram[0x9201 - RAM_ABSOLUTE_START_ADDRESS],
+           ram[0x9202 - RAM_ABSOLUTE_START_ADDRESS],
+           ram[0x9203 - RAM_ABSOLUTE_START_ADDRESS],
+
+           ram[0x9203 - RAM_ABSOLUTE_START_ADDRESS] << 24 |
+               ram[0x9202 - RAM_ABSOLUTE_START_ADDRESS] << 16 |
+               ram[0x9201 - RAM_ABSOLUTE_START_ADDRESS] << 8 |
+               ram[0x9200 - RAM_ABSOLUTE_START_ADDRESS]);
+
     if (io_lcd.display_on) {
         printf("╔");
         for (int x = 0; x < io_lcd.columns; ++x) {
@@ -237,8 +250,13 @@ static void print_state(CPU cpu) {
         for (int y = 0; y < io_lcd.lines; ++y) {
             printf("║");
             for (int x = 0; x < io_lcd.columns; ++x) {
-                uint8_t c = io_lcd.ddram[y * 40 + x];
-                putc(c ? c : ' ', stdout);
+                int c = io_lcd.ddram[y * 40 + x];
+
+                if (c == 0xef) { // TODO: Create an explicit character map that is over-writable
+                    printf("ö");
+                } else {
+                    putc(c ? c : ' ', stdout);
+                }
             }
             puts("║");
         }
@@ -414,6 +432,8 @@ static uint8_t update_io_oe(CPU cpu) {
             return 0xff;
         }
     } else {
+        print_state(cpu);
+        printf("IO port: %d\n", port);
         assert(0 && "IO port has no configured output enable");
     }
 }
@@ -467,9 +487,13 @@ static uint16_t alu_signals(CPU cpu) {
 }
 
 static CPU update_cpu(CPU cpu) {
+    if (step_by_keyboard) {
+        fgetc(stdin);
+    }
+
     if (!SIGNAL_HALT(cpu.control_signals)) {
-        print_state(cpu);
-        exit(1);
+        step_by_keyboard = true;
+        cpu.control_signals ^= (1 << 5);
         return cpu;
     }
 

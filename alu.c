@@ -12,17 +12,8 @@
 #define CARRY_FLAG_SET 0x4 // Only for high slice
 #define OVERFLOW_FLAG_SET 0x8 // Only for high slice
 
+// Overflow flag reference:
 // http://teaching.idallen.com/dat2343/10f/notes/040_overflow.txt
-static uint8_t is_overflow_from_half_add(uint8_t half_num1, uint8_t half_num2,
-                                         uint8_t half_sum) {
-    return
-        // Adding two positives should stay positive otherwise overflow
-        (((half_num1 >> 3) & 1) == 0 && ((half_num2 >> 3) & 1) == 0 &&
-         ((half_sum >> 3) & 1) == 1) ||
-        // Adding two negatives should stay negative otherwise overflow
-        (((half_num1 >> 3) & 1) == 1 && ((half_num2 >> 3) & 1) == 1 &&
-         ((half_sum >> 3) & 1) == 0);
-}
 
 static uint8_t output_from_address(uint32_t i, uint8_t is_higher_half) {
     uint8_t half_A = (i >> 0) & 0xf;
@@ -55,7 +46,10 @@ static uint8_t output_from_address(uint32_t i, uint8_t is_higher_half) {
         uint8_t alu_carry_flag =
             global_carry ? CARRY_FLAG_SET : 0; // Preserve global carry.
 
-        uint8_t alu_overflow_flag = is_overflow_from_half_add(1, half_A, half_q)
+        uint8_t a_sign = (half_A >> 3);
+        uint8_t sum_sign = (half_q >> 3);
+
+        uint8_t alu_overflow_flag = (!a_sign && sum_sign)
                                         ? OVERFLOW_FLAG_SET
                                         : 0x0;
 
@@ -77,10 +71,12 @@ static uint8_t output_from_address(uint32_t i, uint8_t is_higher_half) {
         uint8_t alu_carry_flag =
             global_carry ? CARRY_FLAG_SET : 0; // Preserve global carry.
 
-        uint8_t alu_overflow_flag =
-            is_overflow_from_half_add((uint8_t)-1, half_A, half_q)
-                ? OVERFLOW_FLAG_SET
-                : 0x0;
+        uint8_t a_sign = (half_A >> 3);
+        uint8_t sum_sign = (half_q >> 3);
+
+        uint8_t alu_overflow_flag = (a_sign && !sum_sign)
+                                        ? OVERFLOW_FLAG_SET
+                                        : 0x0;
 
         return half_zero | half_carry |
                (is_higher_half ? alu_overflow_flag | alu_carry_flag
@@ -100,8 +96,12 @@ static uint8_t output_from_address(uint32_t i, uint8_t is_higher_half) {
 
         uint8_t alu_carry_flag = half_carry ? CARRY_FLAG_SET : 0;
 
+        uint8_t a_sign = (half_A >> 3);
+        uint8_t b_sign = (half_B >> 3);
+        uint8_t sum_sign = (half_q >> 3);
+
         uint8_t alu_overflow_flag =
-            is_overflow_from_half_add(half_A, half_B, half_q)
+            ((!a_sign && !b_sign && sum_sign) || (a_sign && b_sign && !sum_sign))
                 ? OVERFLOW_FLAG_SET
                 : 0x0;
 
@@ -110,29 +110,6 @@ static uint8_t output_from_address(uint32_t i, uint8_t is_higher_half) {
                                : alu_zero_flag) |
                ((uint8_t)(half_q << 4));
     }
-
-        // case A_adc_B: {
-        //     uint8_t q = is_higher_half ? half_A + half_B + other_half_carry
-        //                                : half_A + half_B + global_carry;
-        //     uint8_t half_q = q & 0xf;
-        //     uint8_t half_zero = !half_q ? HALF_ZERO_FLAG_SET : 0;
-        //     uint8_t half_carry = (q & 0x10) ? HALF_CARRY_FLAG_SET : 0;
-
-        //     uint8_t alu_zero_flag =
-        //         half_zero && other_half_zero ? ZERO_FLAG_SET : 0;
-
-        //     uint8_t alu_carry_flag = half_carry ? CARRY_FLAG_SET : 0;
-
-        //     uint8_t alu_overflow_flag =
-        //         is_overflow_from_half_add(half_A, half_B, half_q)
-        //             ? OVERFLOW_FLAG_SET
-        //             : 0x0;
-
-        //     return half_zero | half_carry |
-        //            (is_higher_half ? alu_overflow_flag | alu_carry_flag
-        //                            : alu_zero_flag) |
-        //            ((uint8_t)(half_q << 4));
-        // }
 
     case ALU_OP_NOT_LS: {
         uint8_t q = ~half_A;
@@ -269,7 +246,63 @@ static uint8_t output_from_address(uint32_t i, uint8_t is_higher_half) {
                                : alu_zero_flag) |
                ((uint8_t)(half_q << 4));
     }
+
+    case ALU_OP_LS_ADC_RS: {
+        uint8_t q = is_higher_half ? half_A + half_B + other_half_carry
+                                   : half_A + half_B + global_carry;
+        uint8_t half_q = q & 0xf;
+        uint8_t half_zero = !half_q ? HALF_ZERO_FLAG_SET : 0;
+        uint8_t half_carry = (q & 0x10) ? HALF_CARRY_FLAG_SET : 0;
+
+        uint8_t alu_zero_flag =
+            half_zero && other_half_zero ? ZERO_FLAG_SET : 0;
+
+        uint8_t alu_carry_flag = half_carry ? CARRY_FLAG_SET : 0;
+
+        uint8_t a_sign = (half_A >> 3);
+        uint8_t b_sign = (half_B >> 3);
+        uint8_t sum_sign = (half_q >> 3);
+
+        uint8_t alu_overflow_flag =
+            ((!a_sign && !b_sign && sum_sign) || (a_sign && b_sign && !sum_sign))
+                ? OVERFLOW_FLAG_SET
+                : 0x0;
+
+        return half_zero | half_carry |
+               (is_higher_half ? alu_overflow_flag | alu_carry_flag
+                               : alu_zero_flag) |
+               ((uint8_t)(half_q << 4));
     }
+
+    case ALU_OP_LS_SUB_RS: {
+        uint8_t q = is_higher_half ? half_A - (half_B + other_half_carry)
+                                   : half_A - half_B;
+        uint8_t half_q = q & 0xf;
+        uint8_t half_zero = half_q == 0 ? HALF_ZERO_FLAG_SET : 0;
+        uint8_t half_carry = (q & 0x10) ? HALF_CARRY_FLAG_SET : 0;
+
+        uint8_t alu_zero_flag =
+            (half_zero && other_half_zero) ? ZERO_FLAG_SET : 0;
+
+        uint8_t alu_carry_flag = half_carry ? CARRY_FLAG_SET : 0;
+
+        uint8_t a_sign = (half_A >> 3);
+        uint8_t b_sign = (half_B >> 3);
+        uint8_t sum_sign = (half_q >> 3);
+
+        uint8_t alu_overflow_flag =
+            ((!a_sign && b_sign && sum_sign) || (a_sign && !b_sign && !sum_sign))
+                ? OVERFLOW_FLAG_SET
+                : 0;
+
+        return half_zero | half_carry |
+               (is_higher_half ? alu_overflow_flag | alu_carry_flag
+                               : alu_zero_flag) |
+               ((uint8_t)(half_q << 4));
+    }
+    }
+
+    return 0;
 }
 
 static void generate_lookup_table(uint8_t (*low)[ROM_SIZE],
@@ -300,8 +333,8 @@ static int write_to_file(const char *filename,
 }
 
 int main() {
-    uint8_t low[ROM_SIZE];
-    uint8_t high[ROM_SIZE];
+    uint8_t low[ROM_SIZE] = {0};
+    uint8_t high[ROM_SIZE] = {0};
 
     generate_lookup_table(&low, &high);
 
