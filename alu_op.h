@@ -16,9 +16,11 @@ typedef enum {
     ALU_OP_LS_OR_RS,
     ALU_OP_LS_AND_RS,
     ALU_OP_LS_XOR_RS,
+    ALU_OP_LS_ADC_RS,
+    ALU_OP_LS_SUB_RS,
 
     // Special operations
-    ALU_OP_SET_IO_OE_FLAG
+    ALU_OP_SET_IO_OE_FLAG = 31 // Important to be above 0xf to not clash with any constant addresses
 } ALU_OP;
 
 #endif
