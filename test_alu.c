@@ -89,37 +89,39 @@ static void inline print_unexpected_flag(ALU_OP alu_op, ALU_Result r, const char
 static void test_alu_op(ALU_OP alu_op, Expect (*expect_fn)(ALU_Result)) {
     bool success = true;
 
-    for (int ls = 0; ls < 0x100; ++ls) {
-        for (int rs = 0; rs < 0x100; ++rs) {
-            for (int in_cf = 0; in_cf < 2; ++in_cf) {
+    for (uint16_t ls = 0; ls < 0x100; ++ls) {
+        for (uint16_t rs = 0; rs < 0x100; ++rs) {
+            for (uint8_t in_cf = 0; in_cf < 2; ++in_cf) {
                 uint16_t alu_signals = 0;
 
-                int i = 0;
+                uint8_t i = 0;
                 for (; i < 10; ++i) {
                     uint32_t alu_l_address = (ALU_OP_5(alu_op) << 16) |
-                                             (ALU_SIGNAL_H_QC(alu_signals) << 15) |
+                                             (ALU_SIGNAL_H_QC((uint32_t)alu_signals) << 15) |
                                              (ALU_OP_4(alu_op) << 14) | (ALU_OP_3(alu_op) << 13) |
-                                             (ALU_SIGNAL_H_QZ(alu_signals) << 12) |
+                                             (ALU_SIGNAL_H_QZ((uint32_t)alu_signals) << 12) |
                                              (ALU_OP_2(alu_op) << 11) | (ALU_OP_1(alu_op) << 10) | (ALU_OP_0(alu_op) << 9) |
-                                             ((in_cf & 1) << 8) |
-                                             ((rs & 0xf) << 4) |
+                                             (((uint32_t)in_cf & 1) << 8) |
+                                             (((uint32_t)rs & 0xf) << 4) |
                                              (ls & 0xf);
 
                     uint32_t alu_h_address = (ALU_OP_5(alu_op) << 16) |
-                                             (ALU_SIGNAL_L_QC(alu_signals) << 15) |
+                                             (ALU_SIGNAL_L_QC((uint32_t)alu_signals) << 15) |
                                              (ALU_OP_4(alu_op) << 14) | (ALU_OP_3(alu_op) << 13) |
-                                             (ALU_SIGNAL_L_QZ(alu_signals) << 12) |
+                                             (ALU_SIGNAL_L_QZ((uint32_t)alu_signals) << 12) |
                                              (ALU_OP_2(alu_op) << 11) | (ALU_OP_1(alu_op) << 10) | (ALU_OP_0(alu_op) << 9) |
-                                             ((in_cf & 1) << 8) |
-                                             ((rs >> 4) << 4) |
+                                             (((uint32_t)in_cf & 1) << 8) |
+                                             (((uint32_t)rs >> 4) << 4) |
                                              (ls >> 4);
 
-                    uint16_t next_alu_signals = (alu_high_rom[alu_h_address] << 8) | alu_low_rom[alu_l_address];
+                    uint16_t next_alu_signals =
+                        (uint16_t)((alu_high_rom[alu_h_address] << 8) |
+                                   alu_low_rom[alu_l_address]);
 
                     if (next_alu_signals == alu_signals) {
                         ALU_Result alu_result = {
-                            .ls = ls,
-                            .rs = rs,
+                            .ls = (uint8_t)ls,
+                            .rs = (uint8_t)rs,
                             .in_cf = in_cf,
                             .i = i,
                             .alu_signals = alu_signals,
@@ -195,7 +197,7 @@ static Expect expect_inc(ALU_Result r) {
 }
 
 static Expect expect_shl(ALU_Result r) {
-    uint16_t expect_q = r.ls << 1;
+    uint16_t expect_q = (uint16_t)(r.ls << 1);
     Expect expect = {.q = (uint8_t)expect_q};
 
     expect.flags |= ALU_SIGNAL_Q(r.alu_signals) == 0 ? EXPECT_ZF_SET : EXPECT_ZF_CLEARED;
@@ -236,7 +238,7 @@ static Expect expect_dec(ALU_Result r) {
 }
 
 static Expect expect_ror(ALU_Result r) {
-    Expect expect = {.q = ((r.ls & 1) << 7) | r.ls >> 1};
+    Expect expect = {.q = (uint8_t)(((r.ls & 1) << 7) | r.ls >> 1)};
 
     expect.flags |= ALU_SIGNAL_Q(r.alu_signals) == 0 ? EXPECT_ZF_SET : EXPECT_ZF_CLEARED;
     expect.flags |= (r.ls & 1) ? EXPECT_CF_SET : EXPECT_CF_CLEARED;
@@ -320,7 +322,7 @@ static Expect expect_sub(ALU_Result r) {
 int main(void) {
     FILE *file = fopen("./bin/alu_low.bin", "r");
     assert(file != NULL && "Failed to read alu_low.bin");
-    int read_bytes = fread(alu_low_rom, sizeof(uint8_t), ALU_ROM_SIZE, file);
+    size_t read_bytes = fread(alu_low_rom, sizeof(uint8_t), ALU_ROM_SIZE, file);
     assert(read_bytes == ALU_ROM_SIZE && "Failed to read the entire contents of alu_low.bin");
     assert(fclose(file) == 0 && "Failed to close file");
 

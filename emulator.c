@@ -62,6 +62,7 @@
 
 // ALU combined signals
 #define ALU_SIGNAL_Q(alu_signals) ((((alu_signals) >> 8) & 0xf0) | ((alu_signals) >> 4) & 0x0f)
+#define ALU_SIGNAL_Q_SF(alu_signals) ((ALU_SIGNAL_Q(alu_signals) >> 7) & 1)
 
 // C signals
 #define C_OE_IO(c_q) (((c_q) >> 6) & 1) // Active high
@@ -295,7 +296,7 @@ static void update_io_ld(CPU cpu) {
                 if (e_toggled) {
                     io_lcd.dr = io_lcd.next_is_lower_4bit
                                     ? ((io_lcd.dr & 0xf0) | LCD_SIGNAL_DATA(cpu.data_bus))
-                                    : ((LCD_SIGNAL_DATA(cpu.data_bus) << 4) | (io_lcd.dr & 0x0f));
+                                    : ((uint8_t)(LCD_SIGNAL_DATA(cpu.data_bus) << 4) | (io_lcd.dr & 0x0f));
 
                     io_lcd.next_is_lower_4bit = (!io_lcd.next_is_lower_4bit) & 1;
 
@@ -333,7 +334,7 @@ static void update_io_ld(CPU cpu) {
                 if (e_toggled) {
                     io_lcd.ir = io_lcd.next_is_lower_4bit
                                     ? ((io_lcd.ir & 0xf0) | LCD_SIGNAL_DATA(cpu.data_bus))
-                                    : ((LCD_SIGNAL_DATA(cpu.data_bus) << 4) | (io_lcd.ir & 0x0f));
+                                    : ((uint8_t)(LCD_SIGNAL_DATA(cpu.data_bus) << 4) | (io_lcd.ir & 0x0f));
 
                     io_lcd.next_is_lower_4bit = (!io_lcd.next_is_lower_4bit) & 1;
 
@@ -422,7 +423,7 @@ static uint8_t update_io_oe(CPU cpu) {
                 uint8_t busy_flag_and_ac =
                     io_lcd.next_is_lower_4bit
                         // Upper 4 bit
-                        ? (busy_flag << 7) | (busy_flag << 3) | ((io_lcd.ac >> 4) & 3)
+                        ? (uint8_t)(busy_flag << 7) | (uint8_t)(busy_flag << 3) | ((io_lcd.ac >> 4) & 3)
                         // Lower 4 bit
                         : (io_lcd.ac & 0xf);
 
@@ -453,10 +454,10 @@ static uint16_t alu_signals(CPU cpu) {
     uint8_t alu_h_qc = ALU_SIGNAL_H_QC(cpu.alu_signals);
 
     for (int i = 0; i < 5; ++i) {
-        uint32_t alu_l_address = (c_q5 << 16) | (alu_h_qc << 15) | (c_q4 << 14) | (c_q3 << 13) | (alu_h_qz << 12) | (c_q2 << 11) | (c_q1 << 10) | (c_q0 << 9) | (F_CF(cpu.r_f) << 8) | ((cpu.r_rs & 0xf) << 4) | (cpu.r_ls & 0xf);
-        uint32_t alu_h_address = (c_q5 << 16) | (alu_l_qc << 15) | (c_q4 << 14) | (c_q3 << 13) | (alu_l_qz << 12) | (c_q2 << 11) | (c_q1 << 10) | (c_q0 << 9) | (F_CF(cpu.r_f) << 8) | ((cpu.r_rs >> 4) << 4) | (cpu.r_ls >> 4);
+        uint32_t alu_l_address = (uint32_t)((c_q5 << 16) | (alu_h_qc << 15) | (c_q4 << 14) | (c_q3 << 13) | (alu_h_qz << 12) | (c_q2 << 11) | (c_q1 << 10) | (c_q0 << 9) | (F_CF(cpu.r_f) << 8) | ((cpu.r_rs & 0xf) << 4) | (cpu.r_ls & 0xf));
+        uint32_t alu_h_address = (uint32_t)((c_q5 << 16) | (alu_l_qc << 15) | (c_q4 << 14) | (c_q3 << 13) | (alu_l_qz << 12) | (c_q2 << 11) | (c_q1 << 10) | (c_q0 << 9) | (F_CF(cpu.r_f) << 8) | ((cpu.r_rs >> 4) << 4) | (cpu.r_ls >> 4));
 
-        uint16_t alu_signals = (alu_high_rom[alu_h_address] << 8) | alu_low_rom[alu_l_address];
+        uint16_t alu_signals = (uint16_t)(alu_high_rom[alu_h_address] << 8) | alu_low_rom[alu_l_address];
 
         uint8_t alu_l_q0_alu_l_qz = ALU_SIGNAL_L_QZ(alu_signals);
         uint8_t alu_l_q1_alu_l_qc = ALU_SIGNAL_L_QC(alu_signals);
@@ -512,21 +513,23 @@ static CPU update_cpu(CPU cpu) {
 
         // Latch C
         if (!SIGNAL_LD_C(cpu.control_signals)) {
-            cpu.r_c = (1 << 7) |
-                      (ALU_SIGNAL_Q_IO_OE(cpu.alu_signals) << 6) |
-                      (SIGNAL_C5_LS_ALU_Q_OR_HALT_C(cpu.control_signals) << 5) |
-                      (SIGNAL_C4_ALU_OP4_OR_LD_IO(cpu.control_signals) << 4) |
-                      (SIGNAL_C3_OR_LD_RS(cpu.control_signals) << 3) |
-                      (SIGNAL_C2_OR_LD_S(cpu.control_signals) << 2) |
-                      (SIGNAL_C1_OR_LD_O(cpu.control_signals) << 1) |
-                      (SIGNAL_C0_OR_CE_M(cpu.control_signals) << 0);
+            cpu.r_c = (uint8_t)((1 << 7) |
+                                (ALU_SIGNAL_Q_IO_OE(cpu.alu_signals) << 6) |
+                                (SIGNAL_C5_LS_ALU_Q_OR_HALT_C(cpu.control_signals) << 5) |
+                                (SIGNAL_C4_ALU_OP4_OR_LD_IO(cpu.control_signals) << 4) |
+                                (SIGNAL_C3_OR_LD_RS(cpu.control_signals) << 3) |
+                                (SIGNAL_C2_OR_LD_S(cpu.control_signals) << 2) |
+                                (SIGNAL_C1_OR_LD_O(cpu.control_signals) << 1) |
+                                (SIGNAL_C0_OR_CE_M(cpu.control_signals) << 0));
 
             cpu.alu_signals = alu_signals(cpu);
         }
 
         // Count ML/MH
         if (SIGNAL_LD_C(cpu.control_signals) && SIGNAL_C0_OR_CE_M(cpu.control_signals) && SIGNAL_LD_ML(cpu.control_signals)) {
-            if (++cpu.r_ml == 0 && SIGNAL_LD_MH(cpu.control_signals)) {
+            // TODO: Understand why ++cpu.r_ml gives "runtime error: implicit conversion from type 'int' of value 256 (32-bit, signed) to type 'uint8_t' (aka 'unsigned char') changed the value to 0 (8-bit, unsigned)"
+            cpu.r_ml = (u_int8_t)(cpu.r_ml + 1);
+            if (cpu.r_ml == 0 && SIGNAL_LD_MH(cpu.control_signals)) {
                 ++cpu.r_mh;
             }
         }
@@ -546,12 +549,33 @@ static CPU update_cpu(CPU cpu) {
             cpu.r_sel_m_or_c = (!cpu.r_sel_m_or_c) & 1;
         }
 
-        uint32_t control_l_address = (S_Q2(cpu.r_s) << 16) | (S_Q1(cpu.r_s) << 15) | (S_Q3(cpu.r_s) << 14) | (F_SF(cpu.r_f) << 13) | (S_Q0(cpu.r_s) << 12) | (F_ZF(cpu.r_f) << 11) | (0 << 10) | (F_CF(cpu.r_f) << 9) | (F_OF(cpu.r_f) << 8) | cpu.r_o;
-        uint32_t control_h_address = (S_Q2(cpu.r_s) << 16) | (S_Q1(cpu.r_s) << 15) | (S_Q3(cpu.r_s) << 14) | (F_SF(cpu.r_f) << 13) | (S_Q0(cpu.r_s) << 12) | (F_ZF(cpu.r_f) << 11) | (1 << 10) | (F_CF(cpu.r_f) << 9) | (F_OF(cpu.r_f) << 8) | cpu.r_o;
+        uint32_t control_l_address = (uint32_t)((S_Q2(cpu.r_s) << 16) |
+                                                (S_Q1(cpu.r_s) << 15) |
+                                                (S_Q3(cpu.r_s) << 14) |
+                                                (F_SF(cpu.r_f) << 13) |
+                                                (S_Q0(cpu.r_s) << 12) |
+                                                (F_ZF(cpu.r_f) << 11) |
+                                                (0 << 10) |
+                                                (F_CF(cpu.r_f) << 9) |
+                                                (F_OF(cpu.r_f) << 8) |
+                                                cpu.r_o);
 
-        cpu.control_signals = (control_rom[control_h_address] << 8) | control_rom[control_l_address];
+        uint32_t control_h_address = (uint32_t)((S_Q2(cpu.r_s) << 16) |
+                                                (S_Q1(cpu.r_s) << 15) |
+                                                (S_Q3(cpu.r_s) << 14) |
+                                                (F_SF(cpu.r_f) << 13) |
+                                                (S_Q0(cpu.r_s) << 12) |
+                                                (F_ZF(cpu.r_f) << 11) |
+                                                (1 << 10) | (F_CF(cpu.r_f) << 9) |
+                                                (F_OF(cpu.r_f) << 8) |
+                                                cpu.r_o);
 
-        cpu.address_bus = cpu.r_sel_m_or_c ? (0xfff0 | (cpu.r_c & 0xf)) : (cpu.r_mh << 8) | cpu.r_ml;
+        cpu.control_signals = (uint16_t)(control_rom[control_h_address] << 8) |
+                              control_rom[control_l_address];
+
+        cpu.address_bus = cpu.r_sel_m_or_c
+                              ? (0xfff0 | (cpu.r_c & 0xf))
+                              : (uint16_t)(cpu.r_mh << 8) | cpu.r_ml;
 
         int n_oe = 0;
 
@@ -625,10 +649,10 @@ static CPU update_cpu(CPU cpu) {
 
         // Latch F
         if (!SIGNAL_OE_ALU(cpu.control_signals) && !SIGNAL_LD_LS(cpu.control_signals)) {
-            cpu.r_f = ((ALU_SIGNAL_Q(cpu.alu_signals) >> 7) << 3) | // SF
-                      (ALU_SIGNAL_Q_OF(cpu.alu_signals) << 2) |
-                      (ALU_SIGNAL_Q_CF(cpu.alu_signals) << 1) |
-                      (ALU_SIGNAL_Q_ZF(cpu.alu_signals) << 0);
+            cpu.r_f = (uint8_t)((ALU_SIGNAL_Q_SF(cpu.alu_signals) << 3) |
+                                (ALU_SIGNAL_Q_OF(cpu.alu_signals) << 2) |
+                                (ALU_SIGNAL_Q_CF(cpu.alu_signals) << 1) |
+                                (ALU_SIGNAL_Q_ZF(cpu.alu_signals) << 0));
 
             update_alu_signals = true;
         }
@@ -667,12 +691,13 @@ int main(int argc, char **argv) {
     assert(file != NULL && "Failed to read program");
 
     fseek(file, 0, SEEK_END);
-    size_t program_size = ftell(file);
+    long program_size = ftell(file);
+    assert(program_size >= 0);
     fseek(file, 0, SEEK_SET);
     assert(program_size <= (RAM_SIZE - PROGRAM_RAM_RELATIVE_START_ADDRESS) && "Program too big");
 
-    size_t read_bytes = fread(ram + PROGRAM_RAM_RELATIVE_START_ADDRESS, sizeof(uint8_t), program_size, file);
-    assert(read_bytes == program_size && "Failed to read entire contents of program");
+    size_t read_bytes = fread(ram + PROGRAM_RAM_RELATIVE_START_ADDRESS, sizeof(uint8_t), (size_t)program_size, file);
+    assert(read_bytes == (size_t)program_size && "Failed to read entire contents of program");
     assert(fclose(file) == 0 && "Failed to close file");
 
     file = fopen("./bin/control.bin", "r");

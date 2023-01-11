@@ -64,18 +64,17 @@ Using the [arduino boot device](./arduino/BootDeviceSketch/BootDeviceSketch.ino)
 
     customasm -q customasm_ram.asm ./software/ram/3_test.asm --print --format intelhex
 
-
 ## Emulator
 
 ### Compile
 
-    clang -fsanitize=address,integer -Wall -Wextra -Wpedantic -std=c17 -Werror -o ./bin/emulator emulator.c
+    ./compile.zsh emulator.c
 
 ### Run
 
 Requires that the control and ALU ROM binaries are built:
 
-    ./run.zsh control.c && ./run.zsh alu.c
+    ./compile_and_run.zsh control.c && ./compile_and_run.zsh alu.c
 
 Then compile your program using `customasm` togheter with `customasm_ram.asm`:
 
@@ -83,4 +82,4 @@ Then compile your program using `customasm` togheter with `customasm_ram.asm`:
 
 Then finally run the program using the emulator:
 
-    ./bin/emulator <PROGRAM TO RUN>.bin [CLOCK FREQUENCY]
+    ./bin/emulator <PROGRAM TO RUN>.bin [CLOCK FREQUENCY IN HZ]

@@ -60,7 +60,8 @@ static uint8_t output_from_address(uint32_t i, uint8_t is_higher_half) {
     }
 
     case ALU_OP_DEC_LS: {
-        uint8_t q = is_higher_half ? half_A - other_half_carry : half_A - 1;
+        uint8_t q = is_higher_half ? (uint8_t)(half_A - other_half_carry)
+                                   : (uint8_t)(half_A - 1);
         uint8_t half_q = q & 0xf;
         uint8_t half_zero = !half_q ? HALF_ZERO_FLAG_SET : 0;
         uint8_t half_carry = (q & 0x10) ? HALF_CARRY_FLAG_SET : 0;
@@ -112,7 +113,7 @@ static uint8_t output_from_address(uint32_t i, uint8_t is_higher_half) {
     }
 
     case ALU_OP_NOT_LS: {
-        uint8_t q = ~half_A;
+        uint8_t q = (uint8_t)~half_A;
         uint8_t half_q = q & 0xf;
         uint8_t half_zero = !half_q ? HALF_ZERO_FLAG_SET : 0;
         uint8_t half_carry = (q & 0x10) ? HALF_CARRY_FLAG_SET : 0;
@@ -275,8 +276,8 @@ static uint8_t output_from_address(uint32_t i, uint8_t is_higher_half) {
     }
 
     case ALU_OP_LS_SUB_RS: {
-        uint8_t q = is_higher_half ? half_A - (half_B + other_half_carry)
-                                   : half_A - half_B;
+        uint8_t q = is_higher_half ? (uint8_t)(half_A - (half_B + other_half_carry))
+                                   : (uint8_t)(half_A - half_B);
         uint8_t half_q = q & 0xf;
         uint8_t half_zero = half_q == 0 ? HALF_ZERO_FLAG_SET : 0;
         uint8_t half_carry = (q & 0x10) ? HALF_CARRY_FLAG_SET : 0;
@@ -332,7 +333,7 @@ static int write_to_file(const char *filename,
     return ferror(file);
 }
 
-int main() {
+int main(void) {
     uint8_t low[ROM_SIZE] = {0};
     uint8_t high[ROM_SIZE] = {0};
 
