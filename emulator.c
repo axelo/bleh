@@ -13,7 +13,7 @@
 #define RAM_SIZE (1 << 15)
 
 #define RAM_ABSOLUTE_START_ADDRESS (0x8000)
-#define PROGRAM_RAM_RELATIVE_START_ADDRESS (0x1000) // TODO: Probably an in parameter or parse `customasm_ram.asm`
+#define PROGRAM_RAM_RELATIVE_START_ADDRESS (0x0000) // TODO: Probably an in parameter
 
 // Control low signals
 #define SIGNAL_C0_OR_CE_M(signals) (((signals) >> 0) & 1)

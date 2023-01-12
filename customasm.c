@@ -241,13 +241,6 @@ int main(void) {
 
     fprintf(file, "}\n\n");
 
-    fprintf(file, "#bankdef ram {\n"
-                  "    #addr 0x9000\n"
-                  "    #size 0x7000\n"
-                  "    #outp 0\n"
-                  "}\n\n"
-                  "#bank ram\n");
-
     fflush(file);
     assert(fclose(file) == 0 && "Failed to close file");
 
