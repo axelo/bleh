@@ -4,9 +4,7 @@ DEBUG_PORT = 1
 
 out DEBUG_PORT, 0b10101010
 
-call lcd_reset
-call lcd_function_set_4bit_2_lines_5x8_dots_font
-call lcd_display_on_cursor_on_blink_off
+call lcd_init
 
 loop:
     call lcd_return_home
@@ -27,7 +25,7 @@ loop:
     jmp loop
 
 delay:
-    ld b, 10
+    ld b, 1
     ld a, 255
     loop3:
     dec a

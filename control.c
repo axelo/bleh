@@ -4,6 +4,7 @@
 #include <stdio.h> // FILE, f* functions
 
 #include "alu_op.h"
+#include "opcode.h"
 
 #define CONTROL_ROM_SIZE (1 << 17)
 
@@ -67,11 +68,11 @@
 // #define C_ (0xe)
 // #define C_ (0xf)
 
-static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_flag_set, bool overflow_flag_set, bool sign_flag_set, uint8_t opcode) {
+static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_flag_set, bool overflow_flag_set, bool sign_flag_set, Opcode opcode) {
     assert(step < 16);
 
     switch (opcode) {
-    case 0x00: // nop => 0x00
+    case OPCODE_NOP: // nop
         switch (step) {
         case 0: return FETCH_OPCODE;
         case 1: return 0;
@@ -84,7 +85,7 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
         break;
 
-    case 0xff: // halt => 0xff
+    case OPCODE_HALT: // halt
         switch (step) {
         case 0: return FETCH_OPCODE;
         case 1: return HALT_NOT_LD_C;
@@ -92,12 +93,12 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
         break;
 
-    case 0x01: // ld a, {imm: i8} => 0x01 @ imm
-    case 0x02: // ld b, {imm: i8} => 0x02 @ imm
-    case 0x03: // ld c, {imm: i8} => 0x04 @ imm
-    case 0x04: // ld d, {imm: i8} => 0x05 @ imm
+    case OPCODE_LD_A_IMM8: // ld a, {imm: i8}
+    case OPCODE_LD_B_IMM8: // ld b, {imm: i8}
+    case OPCODE_LD_C_IMM8: // ld c, {imm: i8}
+    case OPCODE_LD_D_IMM8: // ld d, {imm: i8}
     {
-        uint8_t dest_const_reg = opcode - 0x01;
+        uint8_t dest_const_reg = (uint8_t)opcode - OPCODE_LD_A_IMM8;
 
         switch (step) {
         case 0: return FETCH_OPCODE;
@@ -106,10 +107,10 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
     } break;
 
-    case 0x05: // ld i, {imm: i16} => 0x05 @ le(imm)
-    case 0x06: // ld j, {imm: i16} => 0x06 @ le(imm)
+    case OPCODE_LD_I_IMM16: // ld i, {imm: i16}
+    case OPCODE_LD_J_IMM16: // ld j, {imm: i16}
     {
-        uint8_t dest_const_index_l = opcode == 0x05 ? C_IL : C_JL;
+        uint8_t dest_const_index_l = opcode == OPCODE_LD_I_IMM16 ? C_IL : C_JL;
 
         switch (step) {
         case 0: return FETCH_OPCODE;
@@ -120,10 +121,10 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
     } break;
 
-    case 0x07: // ld a, [i] => 0x07
-    case 0x08: // ld a, [j] => 0x08
+    case OPCODE_LD_A_I_PTR: // ld a, [i]
+    case OPCODE_LD_A_J_PTR: // ld a, [j]
     {
-        uint8_t const_index_l = opcode == 0x07 ? C_IL : C_JL;
+        uint8_t const_index_l = opcode == OPCODE_LD_A_I_PTR ? C_IL : C_JL;
 
         switch (step) {
         case 0: return FETCH_OPCODE;
@@ -139,10 +140,10 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
     } break;
 
-    case 0x09: // ld a, [i++] => 0x09
-    case 0x0a: // ld a, [j++] => 0x0a
+    case OPCODE_LD_A_I_PTR_INC1: // ld a, [i++]
+    case OPCODE_LD_A_J_PTR_INC1: // ld a, [j++]
     {
-        uint8_t const_index_l = opcode == 0x09 ? C_IL : C_JL;
+        uint8_t const_index_l = opcode == OPCODE_LD_A_I_PTR_INC1 ? C_IL : C_JL;
 
         switch (step) {
         case 0: return FETCH_OPCODE;
@@ -160,10 +161,10 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
     } break;
 
-    case 0x0b: // ld [i], a => 0x0b
-    case 0x0c: // ld [j], a => 0x0c
+    case OPCODE_LD_I_PTR_A: // ld [i], a
+    case OPCODE_LD_J_PTR_A: // ld [j], a
     {
-        uint8_t const_index_l = opcode == 0x0b ? C_IL : C_JL;
+        uint8_t const_index_l = opcode == OPCODE_LD_I_PTR_A ? C_IL : C_JL;
 
         switch (step) {
         case 0: return FETCH_OPCODE;
@@ -179,10 +180,10 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
     } break;
 
-    case 0x0d: // ld [i++], a => 0x0d
-    case 0x0e: // ld [j++], a => 0x0e
+    case OPCODE_LD_I_PTR_INC1_A: // ld [i++], a
+    case OPCODE_LD_J_PTR_INC1_A: // ld [j++], a
     {
-        uint8_t const_index_l = opcode == 0x0d ? C_IL : C_JL;
+        uint8_t const_index_l = opcode == OPCODE_LD_I_PTR_INC1_A ? C_IL : C_JL;
 
         switch (step) {
         case 0: return FETCH_OPCODE;
@@ -200,20 +201,68 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
     } break;
 
-    case 0x21: // ld a, b => 0x21
-    case 0x22: // ld a, c => 0x22
-    case 0x23: // ld a, d => 0x23
-    case 0x24: // ld b, a => 0x24
-    case 0x26: // ld b, c => 0x26
-    case 0x27: // ld b, d => 0x27
-    case 0x28: // ld c, a => 0x28
-    case 0x29: // ld c, b => 0x29
-    case 0x2b: // ld c, d => 0x2b
-    case 0x2c: // ld d, a => 0x2c
-    case 0x2d: // ld d, b => 0x2d
-    case 0x2e: // ld d, c => 0x2e
+    case OPCODE_LD_I_PTR_AB: // ld [i], ab
+    case OPCODE_LD_I_PTR_CD: // ld [i], cd
+    case OPCODE_LD_J_PTR_CD: // ld [j], cd
     {
-        uint8_t relative_opcode = opcode - 0x20;
+        uint8_t const_index_l = opcode == OPCODE_LD_J_PTR_CD ? C_JL : C_IL;
+        uint8_t src_const_reg_l = opcode == OPCODE_LD_I_PTR_AB ? C_B : C_D;
+        uint8_t src_const_reg_h = opcode == OPCODE_LD_I_PTR_AB ? C_A : C_C;
+
+        switch (step) {
+        case 0: return FETCH_OPCODE;
+        case 1: return C_TL | LD_C | TG_M_C;
+        case 2: return OE_ML | LD_MEM | C_TH | LD_C;
+        case 3: return OE_MH | LD_MEM | const_index_l | LD_C;
+        case 4: return OE_MEM | LD_ML | (const_index_l + 1) | LD_C;
+        case 5: return OE_MEM | LD_MH | C_LS_ALU_Q | src_const_reg_l | LD_C;
+        case 6: return OE_MEM | LD_LS | TG_M_C;
+        case 7: return OE_ALU | LD_MEM | C_LS_ALU_Q | src_const_reg_h | LD_C | TG_M_C;
+        case 8: return OE_MEM | LD_LS | CE_M_NOT_LD_C | TG_M_C;
+        case 9: return OE_ALU | LD_MEM | C_TL | LD_C | TG_M_C;
+        case 10: return OE_MEM | LD_ML | C_TH | LD_C;
+        case 11: return OE_MEM | LD_MH | TG_M_C | LD_S_NOT_LD_C;
+        }
+    } break;
+
+    case OPCODE_LD_AB_I_PTR: // ld ab, [i]
+    case OPCODE_LD_CD_I_PTR: // ld cd, [i]
+    case OPCODE_LD_CD_J_PTR: // ld cd, [j]
+    {
+        uint8_t const_index_l = opcode == OPCODE_LD_CD_J_PTR ? C_JL : C_IL;
+        uint8_t dest_const_reg_l = opcode == OPCODE_LD_AB_I_PTR ? C_B : C_D;
+        uint8_t dest_const_reg_h = opcode == OPCODE_LD_AB_I_PTR ? C_A : C_C;
+
+        switch (step) {
+        case 0: return FETCH_OPCODE;
+        case 1: return C_TL | LD_C | TG_M_C;
+        case 2: return OE_ML | LD_MEM | C_TH | LD_C;
+        case 3: return OE_MH | LD_MEM | const_index_l | LD_C;
+        case 4: return OE_MEM | LD_ML | (const_index_l + 1) | LD_C;
+        case 5: return OE_MEM | LD_MH | C_LS_ALU_Q | dest_const_reg_l | LD_C | TG_M_C;
+        case 6: return OE_MEM | LD_LS | CE_M_NOT_LD_C | TG_M_C;
+        case 7: return OE_ALU | LD_MEM | C_LS_ALU_Q | dest_const_reg_h | LD_C | TG_M_C;
+        case 8: return OE_MEM | LD_LS | TG_M_C;
+        case 9: return OE_ALU | LD_MEM | C_TL | LD_C;
+        case 10: return OE_MEM | LD_ML | C_TH | LD_C;
+        case 11: return OE_MEM | LD_MH | TG_M_C | LD_S_NOT_LD_C;
+        }
+    } break;
+
+    case OPCODE_LD_A_B: // ld a, b
+    case OPCODE_LD_A_C: // ld a, c
+    case OPCODE_LD_A_D: // ld a, d
+    case OPCODE_LD_B_A: // ld b, a
+    case OPCODE_LD_B_C: // ld b, c
+    case OPCODE_LD_B_D: // ld b, d
+    case OPCODE_LD_C_A: // ld c, a
+    case OPCODE_LD_C_B: // ld c, b
+    case OPCODE_LD_C_D: // ld c, d
+    case OPCODE_LD_D_A: // ld d, a
+    case OPCODE_LD_D_B: // ld d, b
+    case OPCODE_LD_D_C: // ld d, c
+    {
+        uint8_t relative_opcode = (uint8_t)opcode - (OPCODE_LD_A_B - 1);
 
         uint8_t dest_const_reg = relative_opcode >> 2;
         uint8_t src_const_reg = relative_opcode & 3;
@@ -226,24 +275,31 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
     } break;
 
-    case 0x40: // inc a => 0x40
-    case 0x41: // shl a => 0x41
-    case 0x42: // shr a => 0x42
-    case 0x43: // not a => 0x43
-    case 0x44: // dec a => 0x44
-    case 0x45: // ror a => 0x45
-    case 0x60: // dec b => 0x60
-    case 0x61: // dec c => 0x61
+    case OPCODE_INC_A: // inc a
+    case OPCODE_SHL_A: // shl a
+    case OPCODE_SHR_A: // shr a
+    case OPCODE_NOT_A: // not a
+    case OPCODE_DEC_A: // dec a
+    case OPCODE_ROR_A: // ror a
+    case OPCODE_DEC_B: // dec b
+    case OPCODE_DEC_C: // dec c
+    case OPCODE_DEC_D: // dec d
+    case OPCODE_INC_B: // inc b
+    case OPCODE_INC_C: // inc c
+    case OPCODE_INC_D: // inc d
     {
         uint8_t alu_operation =
-            (opcode == 0x60 || opcode == 0x61)
+            (opcode == OPCODE_DEC_B || opcode == OPCODE_DEC_C || opcode == OPCODE_DEC_D)
                 ? ALU_OP_DEC_LS
-                : opcode - 0x40;
+            : (opcode == OPCODE_INC_B || opcode == OPCODE_INC_C || opcode == OPCODE_INC_D)
+                ? ALU_OP_INC_LS
+                : (uint8_t)opcode - OPCODE_INC_A;
 
         uint8_t dest_const_reg =
-            opcode == 0x61   ? C_C
-            : opcode == 0x60 ? C_B
-                             : C_A;
+            (opcode == OPCODE_DEC_D || opcode == OPCODE_INC_D)   ? C_D
+            : (opcode == OPCODE_DEC_C || opcode == OPCODE_INC_C) ? C_C
+            : (opcode == OPCODE_DEC_B || opcode == OPCODE_INC_B) ? C_B
+                                                                 : C_A;
 
         switch (step) {
         case 0: return FETCH_OPCODE;
@@ -254,32 +310,92 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
     } break;
 
-    case 0x50: // add a, b => 0x50
-    case 0x51: // or a, b => 0x51
-    case 0x52: // and a, b => 0x52
-    case 0x53: // xor a, b => 0x53
+    case OPCODE_ADD_A_B: // add a, b
+    case OPCODE_OR_A_B: // or a, b
+    case OPCODE_AND_A_B: // and a, b
+    case OPCODE_XOR_A_B: // xor a, b
+    case OPCODE_ADC_A_B: // adc a, b
+    case OPCODE_ADD_D_B: // add d, b
+    case OPCODE_ADC_C_A: // adc c, a
     {
-        uint8_t alu_operation = opcode - 0x50 + ALU_OP_LS_ADD_RS;
+        uint8_t alu_operation =
+            opcode == OPCODE_ADD_D_B   ? ALU_OP_LS_ADD_RS
+            : opcode == OPCODE_ADC_C_A ? ALU_OP_LS_ADC_RS
+                                       : (uint8_t)opcode - OPCODE_ADD_A_B + ALU_OP_LS_ADD_RS;
+
+        uint8_t dest_const_reg =
+            opcode == OPCODE_ADD_D_B   ? C_D
+            : opcode == OPCODE_ADC_C_A ? C_C
+                                       : C_A;
+
+        uint8_t src_const_reg =
+            opcode == OPCODE_ADD_D_B   ? C_B
+            : opcode == OPCODE_ADC_C_A ? C_A
+                                       : C_B;
 
         switch (step) {
         case 0: return FETCH_OPCODE;
-        case 1: return C_A | LD_C | TG_M_C;
-        case 2: return OE_MEM | LD_LS | C_B | LD_C;
+        case 1: return dest_const_reg | LD_C | TG_M_C;
+        case 2: return OE_MEM | LD_LS | src_const_reg | LD_C;
         case 3: return OE_MEM | LD_RS_NOT_LD_C;
         case 4: return alu_operation | LD_C;
-        case 5: return OE_ALU | LD_LS | C_LS_ALU_Q | C_A | LD_C;
+        case 5: return OE_ALU | LD_LS | C_LS_ALU_Q | dest_const_reg | LD_C;
         case 6: return OE_ALU | LD_MEM | TG_M_C | LD_S_NOT_LD_C;
         }
     } break;
 
-    case 0x78: // out {port: u3}, {imm: i8} => (0x78 + port)`8 @ imm
-    case 0x79:
-    case 0x7a:
-    case 0x7b:
-    case 0x7c:
-    case 0x7d:
-    case 0x7e:
-    case 0x7f: {
+    case OPCODE_ADC_D_IMM8: // adc d, {imm: i8}
+    case OPCODE_ADD_A_IMM8: // add a, {imm: i8}
+    case OPCODE_OR_A_IMM8: // or a, {imm: i8}
+    case OPCODE_AND_A_IMM8: // and a, {imm: i8}
+    case OPCODE_XOR_A_IMM8: // xor a, {imm: i8}
+    case OPCODE_ADC_A_IMM8: // adc a, {imm: i8}
+    case OPCODE_ADD_B_IMM8: // add b, {imm: i8}
+    {
+        uint8_t alu_operation =
+            (opcode == OPCODE_ADD_B_IMM8)   ? ALU_OP_LS_ADD_RS
+            : (opcode == OPCODE_ADC_D_IMM8) ? ALU_OP_LS_ADC_RS
+                                            : (uint8_t)opcode - OPCODE_ADD_A_IMM8 + ALU_OP_LS_ADD_RS;
+
+        uint8_t dest_const_reg =
+            (opcode == OPCODE_ADD_B_IMM8)   ? C_B
+            : (opcode == OPCODE_ADC_D_IMM8) ? C_D
+                                            : C_A;
+
+        switch (step) {
+        case 0: return FETCH_OPCODE;
+        case 1: return OE_MEM | LD_RS_NOT_LD_C | CE_M_NOT_LD_C;
+        case 2: return dest_const_reg | LD_C | TG_M_C;
+        case 3: return OE_MEM | LD_LS | alu_operation | LD_C;
+        case 4: return OE_ALU | LD_LS | C_LS_ALU_Q | dest_const_reg | LD_C;
+        case 5: return OE_ALU | LD_MEM | TG_M_C | LD_S_NOT_LD_C;
+        }
+    } break;
+
+    case OPCODE_CMP_A_IMM8: // cmp a, {imm: i8}
+    case OPCODE_CMP_B_IMM8: // cmp b, {imm: i8}
+    {
+        uint8_t const_reg =
+            opcode == OPCODE_CMP_A_IMM8 ? C_A
+                                        : C_B;
+
+        switch (step) {
+        case 0: return FETCH_OPCODE;
+        case 1: return OE_MEM | LD_RS_NOT_LD_C | CE_M_NOT_LD_C;
+        case 2: return const_reg | LD_C | TG_M_C;
+        case 3: return OE_MEM | LD_LS | ALU_OP_LS_SUB_RS | LD_C;
+        case 4: return OE_ALU | LD_LS | TG_M_C | LD_S_NOT_LD_C;
+        }
+    } break;
+
+    case OPCODE_OUT_PORT0_IMM8: // out {port: u3}, {imm: i8}
+    case OPCODE_OUT_PORT1_IMM8:
+    case OPCODE_OUT_PORT2_IMM8:
+    case OPCODE_OUT_PORT3_IMM8:
+    case OPCODE_OUT_PORT4_IMM8:
+    case OPCODE_OUT_PORT5_IMM8:
+    case OPCODE_OUT_PORT6_IMM8:
+    case OPCODE_OUT_PORT7_IMM8: {
         switch (step) {
         case 0: return FETCH_OPCODE;
         case 1: return OE_MEM | LD_IO_NOT_LD_C;
@@ -287,14 +403,14 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
     } break;
 
-    case 0x80: // in a, {port: u3} => (0x80 + port)`8
-    case 0x81:
-    case 0x82:
-    case 0x83:
-    case 0x84:
-    case 0x85:
-    case 0x86:
-    case 0x87: {
+    case OPCODE_IN_A_PORT0: // in a, {port: u3}
+    case OPCODE_IN_A_PORT1:
+    case OPCODE_IN_A_PORT2:
+    case OPCODE_IN_A_PORT3:
+    case OPCODE_IN_A_PORT4:
+    case OPCODE_IN_A_PORT5:
+    case OPCODE_IN_A_PORT6:
+    case OPCODE_IN_A_PORT7: {
         switch (step) {
         case 0: return FETCH_OPCODE;
         case 1: return ALU_OP_SET_IO_OE_FLAG | LD_C | TG_M_C;
@@ -304,14 +420,14 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
     } break;
 
-    case 0x88: // out {port: u3}, a => (0x88 + port)`8
-    case 0x89:
-    case 0x8a:
-    case 0x8b:
-    case 0x8c:
-    case 0x8d:
-    case 0x8e:
-    case 0x8f: {
+    case OPCODE_OUT_PORT0_A: // out {port: u3}, a
+    case OPCODE_OUT_PORT1_A:
+    case OPCODE_OUT_PORT2_A:
+    case OPCODE_OUT_PORT3_A:
+    case OPCODE_OUT_PORT4_A:
+    case OPCODE_OUT_PORT5_A:
+    case OPCODE_OUT_PORT6_A:
+    case OPCODE_OUT_PORT7_A: {
         switch (step) {
         case 0: return FETCH_OPCODE;
         case 1: return C_A | LD_C | TG_M_C;
@@ -320,10 +436,10 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
     } break;
 
-    case 0x90: // jmp i => 0x90
-    case 0x91: // jmp j => 0x91
+    case OPCODE_JMP_I: // jmp i
+    case OPCODE_JMP_J: // jmp j
     {
-        uint8_t const_index_l = opcode == 0x90 ? C_IL : C_JL;
+        uint8_t const_index_l = opcode == OPCODE_JMP_I ? C_IL : C_JL;
 
         switch (step) {
         case 0: return FETCH_OPCODE;
@@ -333,7 +449,7 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
     } break;
 
-    case 0x92: // jmp {imm: i16} => 0x92 @ le(imm)
+    case OPCODE_JMP_IMM16: // jmp {imm: i16}
         switch (step) {
         case 0: return FETCH_OPCODE;
         case 1: return OE_MEM | LD_LS | CE_M_NOT_LD_C;
@@ -342,27 +458,27 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
         break;
 
-    case 0x93: // jz  {imm: i16} => 0x93 @ le(imm)
-    case 0x94: // jnz {imm: i16} => 0x94 @ le(imm)
-    case 0x95: // jc  {imm: i16} => 0x95 @ le(imm)
-    case 0x96: // jnc {imm: i16} => 0x96 @ le(imm)
-    case 0x97: // jo {imm: i16} => 0x97 @ le(imm)
-    case 0x98: // jno {imm: i16} => 0x98 @ le(imm)
-    case 0x99: // js {imm: i16} => 0x99 @ le(imm)
-    case 0x9a: // jns {imm: i16} => 0x9a @ le(imm)
+    case OPCODE_JZ_IMM16: // jz  {imm: i16}
+    case OPCODE_JNZ_IMM16: // jnz {imm: i16}
+    case OPCODE_JC_IMM16: // jc  {imm: i16}
+    case OPCODE_JNC_IMM16: // jnc {imm: i16}
+    case OPCODE_JO_IMM16: // jo {imm: i16}
+    case OPCODE_JNO_IMM16: // jno {imm: i16}
+    case OPCODE_JS_IMM16: // js {imm: i16}
+    case OPCODE_JNS_IMM16: // jns {imm: i16}
     {
-        bool do_jump = opcode == 0x93   ? zero_flag_set
-                       : opcode == 0x94 ? !zero_flag_set
+        bool do_jump = opcode == OPCODE_JZ_IMM16    ? zero_flag_set
+                       : opcode == OPCODE_JNZ_IMM16 ? !zero_flag_set
 
-                       : opcode == 0x95 ? carry_flag_set
-                       : opcode == 0x96 ? !carry_flag_set
+                       : opcode == OPCODE_JC_IMM16  ? carry_flag_set
+                       : opcode == OPCODE_JNC_IMM16 ? !carry_flag_set
 
-                       : opcode == 0x97 ? overflow_flag_set
-                       : opcode == 0x98 ? !overflow_flag_set
+                       : opcode == OPCODE_JO_IMM16  ? overflow_flag_set
+                       : opcode == OPCODE_JNO_IMM16 ? !overflow_flag_set
 
-                       : opcode == 0x99 ? sign_flag_set
-                       : opcode == 0x9a ? !sign_flag_set
-                                        : false;
+                       : opcode == OPCODE_JS_IMM16  ? sign_flag_set
+                       : opcode == OPCODE_JNS_IMM16 ? !sign_flag_set
+                                                    : false;
 
         if (do_jump) {
             switch (step) {
@@ -381,7 +497,7 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
     } break;
 
-    case 0xa0: // ld sp, {imm: i8} => 0xa0 @ imm
+    case OPCODE_LD_SP_IMM8: // ld sp, {imm: i8}
         switch (step) {
         case 0: return FETCH_OPCODE;
         case 1: return OE_MEM | LD_LS | C_LS_ALU_Q | C_SPL | LD_C | TG_M_C;
@@ -389,12 +505,12 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
         break;
 
-    case 0xa2: // push a => 0xa2 (store at ++sp)
-    case 0xa3: // push b => 0xa3 (store at ++sp)
-    case 0xa4: // push c => 0xa4 (store at ++sp)
-    case 0xa5: // push d => 0xa5 (store at ++sp)
+    case OPCODE_PUSH_A: // push a (store at ++sp)
+    case OPCODE_PUSH_B: // push b (store at ++sp)
+    case OPCODE_PUSH_C: // push c (store at ++sp)
+    case OPCODE_PUSH_D: // push d (store at ++sp)
     {
-        uint8_t src_const_reg = opcode - 0xa2;
+        uint8_t src_const_reg = (uint8_t)opcode - OPCODE_PUSH_A;
 
         switch (step) {
         case 0: return FETCH_OPCODE;
@@ -411,10 +527,10 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
     } break;
 
-    case 0xa6: // push i => 0xa6 (store l at ++sp, h at ++sp)
-    case 0xa7: // push j => 0xa7 (store l at ++sp, h at ++sp)
+    case OPCODE_PUSH_I: // push i (store l at ++sp, h at ++sp)
+    case OPCODE_PUSH_J: // push j (store l at ++sp, h at ++sp)
     {
-        uint8_t src_const_index_l = opcode == 0xa6 ? C_IL : C_JL;
+        uint8_t src_const_index_l = opcode == OPCODE_PUSH_I ? C_IL : C_JL;
 
         switch (step) {
         case 0: return FETCH_OPCODE;
@@ -433,12 +549,12 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
     } break;
 
-    case 0xa8: // pop a => 0xa8 (load from sp--)
-    case 0xa9: // pop b => 0xa9 (load from sp--)
-    case 0xaa: // pop c => 0xaa (load from sp--)
-    case 0xab: // pop d => 0xab (load from sp--)
+    case OPCODE_POP_A: // pop a (load from sp--)
+    case OPCODE_POP_B: // pop b (load from sp--)
+    case OPCODE_POP_C: // pop c (load from sp--)
+    case OPCODE_POP_D: // pop d (load from sp--)
     {
-        uint8_t dest_const_reg = opcode - 0xa8;
+        uint8_t dest_const_reg = (uint8_t)opcode - OPCODE_POP_A;
 
         assert(ALU_OP_DEC_LS == C_SPL && "C_SPL must be identical to ALU_OP_DEC_LS");
 
@@ -457,10 +573,10 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
     } break;
 
-    case 0xac: // pop i => 0xac (read h at sp--, l at sp--)
-    case 0xad: // pop j => 0xad (read h at sp--, l at sp--)
+    case OPCODE_POP_I: // pop i (read h at sp--, l at sp--)
+    case OPCODE_POP_J: // pop j (read h at sp--, l at sp--)
     {
-        uint8_t dest_const_index_l = opcode == 0xac ? C_IL : C_JL;
+        uint8_t dest_const_index_l = opcode == OPCODE_POP_I ? C_IL : C_JL;
 
         assert(ALU_OP_DEC_LS == C_SPL && "C_SPL must be identical to ALU_OP_DEC_LS");
 
@@ -483,7 +599,7 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
     } break;
 
-    case 0xb0: // call {imm: i16} => 0xb0 @ le(imm) ; (store pc l at ++sp, pc h at ++sp)
+    case OPCODE_CALL_IMM16: // call {imm: i16} (store pc l at ++sp, pc h at ++sp)
         switch (step) {
         case 0: return FETCH_OPCODE;
         case 1: return OE_MEM | LD_LS | C_LS_ALU_Q | C_TL | LD_C | TG_M_C;
@@ -503,7 +619,7 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
         break;
 
-    case 0xb1: // ret => 0xb1 ; (read pc h at sp--, pc l at sp--)
+    case OPCODE_RET: // ret (read pc h at sp--, pc l at sp--)
     {
         assert(ALU_OP_DEC_LS == C_SPL && "C_SPL must be identical to ALU_OP_DEC_LS");
 
@@ -522,7 +638,7 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         }
     } break;
 
-    case 0xb2: // ld a, [sp-{imm:i8}] => 0xb2 @ (-imm)`8
+    case OPCODE_LD_A_SP_PLUS_IMM8_PTR: // ld a, [sp+{imm:i8}]
         switch (step) {
         case 0: return FETCH_OPCODE;
         case 1: return OE_MEM | LD_RS_NOT_LD_C | CE_M_NOT_LD_C; // RS = -imm
@@ -538,15 +654,12 @@ static uint16_t signals_from_input(uint8_t step, bool zero_flag_set, bool carry_
         case 11: return OE_MEM | LD_MH | TG_M_C | LD_S_NOT_LD_C;
         }
         break;
-
-    default:
-        switch (step) {
-        case 0: return FETCH_OPCODE;
-        }
-        break;
     }
 
-    return HALT_NOT_LD_C;
+    switch (step) {
+    case 0: return FETCH_OPCODE;
+    default: return HALT_NOT_LD_C;
+    }
 }
 
 static void generate_table(uint8_t (*table)[CONTROL_ROM_SIZE]) {

@@ -58,11 +58,19 @@ The data bus is pulled high so if nothing is asserted then `0xff` will be read.
 
 ## Software
 
+### Compile
+
+Requires that the `customasm.asm` ruledef file exists:
+
+    ./compile_and_run.zsh customasm.c
+
+Then compile with your program using `customasm`, for example:
+
+    customasm -q ./software/ram/5_test_lcd.asm --print --format intelhex
+
 ### Loading software
 
-Using the [arduino boot device](./arduino/BootDeviceSketch/BootDeviceSketch.ino), connect a serial monitor and paste Intel Hex format of the program, for example:
-
-    customasm -q customasm_ram.asm ./software/ram/3_test.asm --print --format intelhex
+Using the [arduino boot device](./arduino/BootDeviceSketch/BootDeviceSketch.ino), connect a serial monitor and paste Intel Hex format of the program.
 
 ## Emulator
 
@@ -76,9 +84,9 @@ Requires that the control and ALU ROM binaries are built:
 
     ./compile_and_run.zsh control.c && ./compile_and_run.zsh alu.c
 
-Then compile your program using `customasm` togheter with `customasm_ram.asm`:
+Then compile your program using `customasm`:
 
-    customasm customasm_ram.asm <PROGRAM TO RUN>.asm --format binary --output <PROGRAM TO RUN>.bin
+    customasm <PROGRAM TO RUN>.asm --format binary --output <PROGRAM TO RUN>.bin
 
 Then finally run the program using the emulator:
 

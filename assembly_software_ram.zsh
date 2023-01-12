@@ -1,9 +1,5 @@
 #!/bin/zsh
 
-# -e exit immediately when a command fails.
-# -u treat unset variables as an error and exit immediately.
-# -x print each command before executing it.
-# -o pipefail sets the exit code of a pipeline to that of the rightmost command to exit with a non-zero status.
 set -euo pipefail
 
 mkdir -p ./bin/software/ram
