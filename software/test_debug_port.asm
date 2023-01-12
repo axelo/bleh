@@ -1,4 +1,5 @@
-#include "../../customasm.asm"
+#include "../customasm.asm"
+#include "../customasm_mem_map.asm"
 
 DEBUG_PORT = 1
 
