@@ -1,11 +1,12 @@
-#include "../../customasm.asm"
+#include "../customasm.asm"
+#include "../customasm_mem_map_rom.asm"
 
 BOOT_PORT = 0
 BOOT_COMMAND_GET_BYTES = 0xab
 
 DEBUG_PORT = 1
 
-BOOT_ADDRESS = 0x9000
+BOOT_ADDRESS = 0x8000
 
 ld sp, 0xff
 

@@ -4,20 +4,20 @@ set -euo pipefail
 
 mkdir -p ./bin/software/rom
 
-# Compile every asm file individually, keep track of the outputted bin filenames.
+in_files=(software/boot_device_loader.asm)
 out_files=()
 
 declare -i i=0
 
-for FILE in software/rom/*.asm
+for FILE in $in_files
 do
   out_file=./bin/software/rom/${${FILE:t}:r}
   out_file_filled=${out_file}.bin
 
-  customasm -q customasm_rom.asm $FILE -o $out_file_filled
+  customasm -q $FILE -o $out_file_filled
   echo "$i: $FILE"
   i+=1
-  customasm -q customasm_rom.asm $FILE -p
+  customasm -q $FILE -p
   out_files+=($out_file_filled)
 done
 

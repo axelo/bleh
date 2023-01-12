@@ -1,4 +1,5 @@
-#include "../../customasm.asm"
+#include "../customasm.asm"
+#include "../customasm_mem_map.asm"
 
 DEBUG_PORT = 1
 
@@ -42,4 +43,4 @@ message2:
 
 
 LCD_PORT = 2
-#include "../libraries/lcd.asm"
+#include "./libraries/lcd.asm"
