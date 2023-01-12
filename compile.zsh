@@ -32,7 +32,7 @@ mkdir -p ./bin
 set -x
 
 clang $CLANG_SANITIZE \
-    $WARNINGS $DISABLED_WARNINGS -Werror \
+    $WARNINGS $DISABLED_WARNINGS -Werror -ferror-limit=256 \
     $OPTIMIZATION_LEVEL -std=c17 \
     --debug \
     -o ./bin/"${1%.*}" "$1"

@@ -1,8 +1,14 @@
-#include "opcode.h"
+#include <assert.h>
 #include <stdio.h>
+#include <time.h>
+
+#include "opcode.h"
 
 typedef enum {
     NONE,
+    PORT,
+    PORT_IMM8,
+    PORT_A,
     IMM8,
     IMM16
 } Operand;
@@ -79,30 +85,93 @@ static Rule rule_from_opcode(Opcode opcode) {
     case OPCODE_ADD_B_IMM8: return rule("add b,", IMM8);
     case OPCODE_CMP_A_IMM8: return rule("cmp a,", IMM8);
     case OPCODE_CMP_B_IMM8: return rule("cmp b,", IMM8);
-    case OPCODE_OUT_PORT0_IMM8: return rule("out 0,", IMM8);
-    case OPCODE_OUT_PORT1_IMM8: return rule("out 1,", IMM8);
-    case OPCODE_OUT_PORT2_IMM8: return rule("out 2,", IMM8);
-    case OPCODE_OUT_PORT3_IMM8: return rule("out 3,", IMM8);
-    case OPCODE_OUT_PORT4_IMM8: return rule("out 4,", IMM8);
-    case OPCODE_OUT_PORT5_IMM8: return rule("out 5,", IMM8);
-    case OPCODE_OUT_PORT6_IMM8: return rule("out 6,", IMM8);
-    case OPCODE_OUT_PORT7_IMM8: return rule("out 7,", IMM8);
-    case OPCODE_IN_A_PORT0: return rule("in a, 0", NONE);
-    case OPCODE_IN_A_PORT1: return rule("in a, 1", NONE);
-    case OPCODE_IN_A_PORT2: return rule("in a, 2", NONE);
-    case OPCODE_IN_A_PORT3: return rule("in a, 3", NONE);
-    case OPCODE_IN_A_PORT4: return rule("in a, 4", NONE);
-    case OPCODE_IN_A_PORT5: return rule("in a, 5", NONE);
-    case OPCODE_IN_A_PORT6: return rule("in a, 6", NONE);
-    case OPCODE_IN_A_PORT7: return rule("in a, 7", NONE);
-    case OPCODE_OUT_PORT0_A: return rule("out 0, a", NONE);
-    case OPCODE_OUT_PORT1_A: return rule("out 1, a", NONE);
-    case OPCODE_OUT_PORT2_A: return rule("out 2, a", NONE);
-    case OPCODE_OUT_PORT3_A: return rule("out 3, a", NONE);
-    case OPCODE_OUT_PORT4_A: return rule("out 4, a", NONE);
-    case OPCODE_OUT_PORT5_A: return rule("out 5, a", NONE);
-    case OPCODE_OUT_PORT6_A: return rule("out 6, a", NONE);
-    case OPCODE_OUT_PORT7_A: return rule("out 7, a", NONE);
+    case OPCODE_OUT_PORT0_IMM8: assert((opcode & 7) == 0); return rule("out", PORT_IMM8);
+    case OPCODE_OUT_PORT1_IMM8:
+        assert(opcode - 1 == OPCODE_OUT_PORT0_IMM8);
+        assert((opcode & 7) == 1);
+        return rule("", NONE);
+    case OPCODE_OUT_PORT2_IMM8:
+        assert(opcode - 1 == OPCODE_OUT_PORT1_IMM8);
+        assert((opcode & 7) == 2);
+        return rule("", NONE);
+    case OPCODE_OUT_PORT3_IMM8:
+        assert(opcode - 1 == OPCODE_OUT_PORT2_IMM8);
+        assert((opcode & 7) == 3);
+        return rule("", NONE);
+    case OPCODE_OUT_PORT4_IMM8:
+        assert(opcode - 1 == OPCODE_OUT_PORT3_IMM8);
+        assert((opcode & 7) == 4);
+        return rule("", NONE);
+    case OPCODE_OUT_PORT5_IMM8:
+        assert(opcode - 1 == OPCODE_OUT_PORT4_IMM8);
+        assert((opcode & 7) == 5);
+        return rule("", NONE);
+    case OPCODE_OUT_PORT6_IMM8:
+        assert(opcode - 1 == OPCODE_OUT_PORT5_IMM8);
+        assert((opcode & 7) == 6);
+        return rule("", NONE);
+    case OPCODE_OUT_PORT7_IMM8:
+        assert(opcode - 1 == OPCODE_OUT_PORT6_IMM8);
+        assert((opcode & 7) == 7);
+        return rule("", NONE);
+    case OPCODE_IN_A_PORT0: assert((opcode & 7) == 0); return rule("in a,", PORT);
+    case OPCODE_IN_A_PORT1:
+        assert(opcode - 1 == OPCODE_IN_A_PORT0);
+        assert((opcode & 7) == 1);
+        return rule("", NONE);
+    case OPCODE_IN_A_PORT2:
+        assert(opcode - 1 == OPCODE_IN_A_PORT1);
+        assert((opcode & 7) == 2);
+        return rule("", NONE);
+    case OPCODE_IN_A_PORT3:
+        assert(opcode - 1 == OPCODE_IN_A_PORT2);
+        assert((opcode & 7) == 3);
+        return rule("", NONE);
+    case OPCODE_IN_A_PORT4:
+        assert(opcode - 1 == OPCODE_IN_A_PORT3);
+        assert((opcode & 7) == 4);
+        return rule("", NONE);
+    case OPCODE_IN_A_PORT5:
+        assert(opcode - 1 == OPCODE_IN_A_PORT4);
+        assert((opcode & 7) == 5);
+        return rule("", NONE);
+    case OPCODE_IN_A_PORT6:
+        assert(opcode - 1 == OPCODE_IN_A_PORT5);
+        assert((opcode & 7) == 6);
+        return rule("", NONE);
+    case OPCODE_IN_A_PORT7:
+        assert(opcode - 1 == OPCODE_IN_A_PORT6);
+        assert((opcode & 7) == 7);
+        return rule("", NONE);
+    case OPCODE_OUT_PORT0_A: assert((opcode & 7) == 0); return rule("out", PORT_A);
+    case OPCODE_OUT_PORT1_A:
+        assert(opcode - 1 == OPCODE_OUT_PORT0_A);
+        assert((opcode & 7) == 1);
+        return rule("", NONE);
+    case OPCODE_OUT_PORT2_A:
+        assert(opcode - 1 == OPCODE_OUT_PORT1_A);
+        assert((opcode & 7) == 2);
+        return rule("", NONE);
+    case OPCODE_OUT_PORT3_A:
+        assert(opcode - 1 == OPCODE_OUT_PORT2_A);
+        assert((opcode & 7) == 3);
+        return rule("", NONE);
+    case OPCODE_OUT_PORT4_A:
+        assert(opcode - 1 == OPCODE_OUT_PORT3_A);
+        assert((opcode & 7) == 4);
+        return rule("", NONE);
+    case OPCODE_OUT_PORT5_A:
+        assert(opcode - 1 == OPCODE_OUT_PORT4_A);
+        assert((opcode & 7) == 5);
+        return rule("", NONE);
+    case OPCODE_OUT_PORT6_A:
+        assert(opcode - 1 == OPCODE_OUT_PORT5_A);
+        assert((opcode & 7) == 6);
+        return rule("", NONE);
+    case OPCODE_OUT_PORT7_A:
+        assert(opcode - 1 == OPCODE_OUT_PORT6_A);
+        assert((opcode & 7) == 7);
+        return rule("", NONE);
     case OPCODE_JMP_I: return rule("jmp i", NONE);
     case OPCODE_JMP_J: return rule("jmp j", NONE);
     case OPCODE_JMP_IMM16: return rule("jmp", IMM16);
@@ -129,7 +198,7 @@ static Rule rule_from_opcode(Opcode opcode) {
     case OPCODE_POP_J: return rule("pop j", NONE);
     case OPCODE_CALL_IMM16: return rule("call", IMM16);
     case OPCODE_RET: return rule("ret", NONE);
-    case OPCODE_LD_A_SP_MINUS_IMM8_PTR: return rule("ld [sp+{imm:u8}],", IMM8);
+    case OPCODE_LD_A_SP_PLUS_IMM8_PTR: return rule("ld [sp+{imm:u8}],", IMM8);
     case OPCODE_HALT: return rule("halt", NONE);
     }
 
@@ -137,24 +206,50 @@ static Rule rule_from_opcode(Opcode opcode) {
 }
 
 int main(void) {
-    printf("#bits 8\n\n#ruledef {\n");
+    FILE *file = fopen("customasm.asm", "w");
+    assert(file != NULL);
+
+    time_t current_time;
+    time(&current_time);
+
+    fprintf(file, "; Generated %s\n", ctime(&current_time));
+
+    fprintf(file, "#bits 8\n\n#ruledef {\n");
 
     for (Opcode opcode = 0; opcode < 0x100; ++opcode) {
         Rule r = rule_from_opcode(opcode);
-        printf("    %s%s => 0x%02x%s\n",
-               r.n,
-               r.op == NONE    ? ""
-               : r.op == IMM8  ? " {imm: i8}"
-               : r.op == IMM16 ? " {imm: i16}"
-                               : "",
-               opcode,
-               r.op == NONE    ? ""
-               : r.op == IMM8  ? " @ imm"
-               : r.op == IMM16 ? " @ le(imm)"
-                               : "");
+        if (r.n[0] != '\0') {
+            fprintf(file, "    %s%s => (0x%02x%s\n",
+                    r.n,
+                    r.op == NONE        ? ""
+                    : r.op == PORT      ? " {port: u3}"
+                    : r.op == PORT_IMM8 ? " {port: u3}, {imm: i8}"
+                    : r.op == PORT_A    ? " {port: u3}, a"
+                    : r.op == IMM8      ? " {imm: i8}"
+                    : r.op == IMM16     ? " {imm: i16}"
+                                        : "",
+                    opcode,
+                    r.op == NONE        ? ")"
+                    : r.op == PORT      ? " + port)`8"
+                    : r.op == PORT_IMM8 ? " + port)`8 @ imm"
+                    : r.op == PORT_A    ? " + port)`8"
+                    : r.op == IMM8      ? ") @ imm"
+                    : r.op == IMM16     ? ") @ le(imm)"
+                                        : ")");
+        }
     }
 
-    printf("}\n");
+    fprintf(file, "}\n\n");
+
+    fprintf(file, "#bankdef ram {\n"
+                  "    #addr 0x9000\n"
+                  "    #size 0x7000\n"
+                  "    #outp 0\n"
+                  "}\n\n"
+                  "#bank ram\n");
+
+    fflush(file);
+    assert(fclose(file) == 0 && "Failed to close file");
 
     return 0;
 }

@@ -7,6 +7,13 @@ RW_READ = 1 << 6
 E_HIGH = 1 << 5
 E_LOW = 0 << 5
 
+lcd_init:
+    call lcd_reset
+    call lcd_function_set_4bit_2_lines_5x8_dots_font
+    call lcd_display_on_cursor_off_blink_off
+    call lcd_clear_display
+    ret
+
 lcd_reset:
     out LCD_PORT, RS_IR | RW_WRITE | E_HIGH | 0b0011
     out LCD_PORT, RS_IR | RW_WRITE | E_LOW | 0b0011
@@ -57,7 +64,7 @@ lcd_function_set_4bit_2_lines_5x8_dots_font:
 
     ret
 
-lcd_display_on_cursor_on_blink_off:
+lcd_display_on_cursor_off_blink_off:
     ld j, .not_busy
     jmp _lcd_busy_wait_ret_to_j
     .not_busy:
@@ -113,35 +120,30 @@ lcd_write_char:
     ; Input:
     ;   a: char to write
     ; Destroys:
-    ;   b, c, j
-    ld c, a
+    ;   a, b, j
+    ld b, a
 
     ld j, .not_busy
     jmp _lcd_busy_wait_ret_to_j
     .not_busy:
 
     ; Write high nibble
-    ld a, c
+    ld a, b
     shr a
     shr a
     shr a
     shr a
-    ld b, RS_DR | E_HIGH
-    or a, b
+    or a, RS_DR | E_HIGH
     out LCD_PORT, a
-    ld b, !E_HIGH
-    and a, b
+    and a, !E_HIGH
     out LCD_PORT, a
 
     ; Send low nibble
-    ld a, c
-    ld b, 0xf
-    and a, b
-    ld b, RS_DR | E_HIGH
-    or a, b
+    ld a, b
+    and a, 0xf
+    or a, RS_DR | E_HIGH
     out LCD_PORT, a
-    ld b, !E_HIGH
-    and a, b
+    and a, !E_HIGH
     out LCD_PORT, a
 
     ret
@@ -150,11 +152,10 @@ lcd_write_string:
     ; Input:
     ;   i: address to 0 terminated string
     ; Destroys:
-    ;   b, c, j, i
+    ;   a, b, i, j
 
-    ld b, 0
     ld a, [i++]
-    or a, b
+    or a, 0
     jz .done
 
     call lcd_write_char

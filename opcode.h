@@ -173,7 +173,7 @@ typedef enum {
     OPCODE_POP_J = 0xad,
     OPCODE_CALL_IMM16 = 0xb0,
     OPCODE_RET = 0xb1,
-    OPCODE_LD_A_SP_MINUS_IMM8_PTR = 0xb2,
+    OPCODE_LD_A_SP_PLUS_IMM8_PTR = 0xb2,
     // 0xb3
     // 0xb4
     // 0xb5
