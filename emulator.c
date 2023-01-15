@@ -5,6 +5,8 @@
 #include <stdlib.h> // exit
 #include <time.h> // nanosleep
 
+#include "opcode.h"
+
 #define EXIT_AFTER_N_INSTRUCTIONS (50000) // TODO: Probably an in parameter
 
 #define CONTROL_ROM_SIZE (1 << 17)
@@ -718,7 +720,7 @@ int main(int argc, char **argv) {
     assert(read_bytes == ALU_ROM_SIZE && "Failed to read the entire contents of alu_high.bin");
     assert(fclose(file) == 0 && "Failed to close file");
 
-    rom[0] = 0x92; // jmp imm16
+    rom[0] = OPCODE_JMP_IMM16;
     rom[1] = (RAM_ABSOLUTE_START_ADDRESS + PROGRAM_RAM_RELATIVE_START_ADDRESS) & 0xff;
     rom[2] = (RAM_ABSOLUTE_START_ADDRESS + PROGRAM_RAM_RELATIVE_START_ADDRESS) >> 8;
 
