@@ -1,5 +1,6 @@
 .DS_Store
 bin/
+bleh_instructions.asm
 
 # kiCad
 kicad/*/*-backups
@@ -15,4 +16,3 @@ arduino/*/build
 
 # Temp files
 software/*.asm.skip
-customasm.asm

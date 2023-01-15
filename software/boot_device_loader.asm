@@ -1,5 +1,4 @@
-#include "../customasm.asm"
-#include "../customasm_mem_map_rom.asm"
+#include "../bleh_rom.asm"
 
 BOOT_PORT = 0
 BOOT_COMMAND_GET_BYTES = 0xab

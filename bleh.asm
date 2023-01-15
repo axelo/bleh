@@ -1,4 +1,5 @@
 ; For programs loaded into RAM
+#include "./bleh_instructions.asm"
 
 #bankdef rom
 {
