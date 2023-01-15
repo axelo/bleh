@@ -206,7 +206,7 @@ static Rule rule_from_opcode(Opcode opcode) {
 }
 
 int main(void) {
-    FILE *file = fopen("customasm.asm", "w");
+    FILE *file = fopen("bleh_instructions.asm", "w");
     assert(file != NULL);
 
     time_t current_time;

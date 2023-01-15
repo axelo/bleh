@@ -60,13 +60,13 @@ The data bus is pulled high so if nothing is asserted then `0xff` will be read.
 
 ### Compile
 
-Requires that the `customasm.asm` ruledef file exists:
+Requires that the `bleh_instructions.asm` [customasm](https://github.com/hlorenzi/customasm) ruledef file exists:
 
     ./compile_and_run.zsh customasm.c
 
-Then compile with your program using `customasm`, for example:
+Then compile your program using `customasm`, for example:
 
-    customasm -q ./software/ram/5_test_lcd.asm --print --format intelhex
+    customasm -q ./software/test_lcd.asm --print --format intelhex
 
 ### Loading software
 

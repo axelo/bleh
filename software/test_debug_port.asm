@@ -1,5 +1,4 @@
-#include "../customasm.asm"
-#include "../customasm_mem_map.asm"
+#include "../bleh.asm"
 
 DEBUG_PORT = 1
 
